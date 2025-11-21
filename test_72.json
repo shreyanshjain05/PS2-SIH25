@@ -15,7 +15,9 @@
             "w_forecast": -1.8,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.15,
+            "NO2_target": 52.63
         },
         {
             "year": 2021.0,
@@ -31,7 +33,9 @@
             "w_forecast": -1.43,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.45,
+            "NO2_target": 51.7
         },
         {
             "year": 2021.0,
@@ -47,7 +51,9 @@
             "w_forecast": -1.05,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.75,
+            "NO2_target": 49.27
         },
         {
             "year": 2021.0,
@@ -63,7 +69,9 @@
             "w_forecast": -0.67,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 8.68,
+            "NO2_target": 60.92
         },
         {
             "year": 2021.0,
@@ -79,7 +87,9 @@
             "w_forecast": -1.0,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 15.82,
+            "NO2_target": 69.8
         },
         {
             "year": 2021.0,
@@ -95,7 +105,9 @@
             "w_forecast": -1.33,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 42.08,
+            "NO2_target": 62.75
         },
         {
             "year": 2021.0,
@@ -111,7 +123,9 @@
             "w_forecast": -1.66,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 92.93,
+            "NO2_target": 44.5
         },
         {
             "year": 2021.0,
@@ -127,7 +141,9 @@
             "w_forecast": -1.5,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 113.48,
+            "NO2_target": 29.07
         },
         {
             "year": 2021.0,
@@ -143,7 +159,9 @@
             "w_forecast": -1.33,
             "NO2_satellite": 1.74,
             "HCHO_satellite": 2.59,
-            "ratio_satellite": 0.67
+            "ratio_satellite": 0.67,
+            "O3_target": 121.55,
+            "NO2_target": 19.67
         },
         {
             "year": 2021.0,
@@ -159,7 +177,9 @@
             "w_forecast": -1.17,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 110.95,
+            "NO2_target": 16.25
         },
         {
             "year": 2021.0,
@@ -175,7 +195,9 @@
             "w_forecast": -1.17,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 93.35,
+            "NO2_target": 20.62
         },
         {
             "year": 2021.0,
@@ -191,7 +213,9 @@
             "w_forecast": -1.17,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 71.58,
+            "NO2_target": 28.63
         },
         {
             "year": 2021.0,
@@ -207,7 +231,9 @@
             "w_forecast": -1.16,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 20.68,
+            "NO2_target": 66.53
         },
         {
             "year": 2021.0,
@@ -223,7 +249,9 @@
             "w_forecast": -1.22,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.42,
+            "NO2_target": 85.38
         },
         {
             "year": 2021.0,
@@ -239,7 +267,9 @@
             "w_forecast": -1.27,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.45,
+            "NO2_target": 80.82
         },
         {
             "year": 2021.0,
@@ -255,7 +285,9 @@
             "w_forecast": -1.33,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.85,
+            "NO2_target": 87.22
         },
         {
             "year": 2021.0,
@@ -271,7 +303,9 @@
             "w_forecast": -1.37,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.17,
+            "NO2_target": 92.95
         },
         {
             "year": 2021.0,
@@ -287,7 +321,9 @@
             "w_forecast": -1.42,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.47,
+            "NO2_target": 97.03
         },
         {
             "year": 2021.0,
@@ -303,7 +339,9 @@
             "w_forecast": -1.46,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.25,
+            "NO2_target": 113.0
         },
         {
             "year": 2021.0,
@@ -319,7 +357,9 @@
             "w_forecast": -0.83,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.55,
+            "NO2_target": 126.95
         },
         {
             "year": 2021.0,
@@ -335,7 +375,9 @@
             "w_forecast": -0.19,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.5,
+            "NO2_target": 126.47
         },
         {
             "year": 2021.0,
@@ -351,7 +393,9 @@
             "w_forecast": 0.44,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.53,
+            "NO2_target": 126.3
         },
         {
             "year": 2021.0,
@@ -367,7 +411,9 @@
             "w_forecast": -0.37,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.68,
+            "NO2_target": 118.6
         },
         {
             "year": 2021.0,
@@ -383,7 +429,9 @@
             "w_forecast": -1.18,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.58,
+            "NO2_target": 110.58
         },
         {
             "year": 2023.0,
@@ -399,7 +447,9 @@
             "w_forecast": -0.71,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.22,
+            "NO2_target": 8.15
         },
         {
             "year": 2023.0,
@@ -415,7 +465,9 @@
             "w_forecast": -0.79,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 34.88,
+            "NO2_target": 14.82
         },
         {
             "year": 2023.0,
@@ -431,7 +483,9 @@
             "w_forecast": -0.86,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 14.22,
+            "NO2_target": 14.97
         },
         {
             "year": 2023.0,
@@ -447,7 +501,9 @@
             "w_forecast": -0.94,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 12.67,
+            "NO2_target": 12.9
         },
         {
             "year": 2023.0,
@@ -463,7 +519,9 @@
             "w_forecast": -0.68,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 7.58,
+            "NO2_target": 11.4
         },
         {
             "year": 2023.0,
@@ -479,7 +537,9 @@
             "w_forecast": -0.43,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.6,
+            "NO2_target": 10.6
         },
         {
             "year": 2023.0,
@@ -495,7 +555,9 @@
             "w_forecast": -0.17,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.97,
+            "NO2_target": 7.17
         },
         {
             "year": 2023.0,
@@ -511,7 +573,9 @@
             "w_forecast": -0.07,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.12,
+            "NO2_target": 11.43
         },
         {
             "year": 2023.0,
@@ -527,7 +591,9 @@
             "w_forecast": 0.03,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.03,
+            "NO2_target": 9.47
         },
         {
             "year": 2023.0,
@@ -543,7 +609,9 @@
             "w_forecast": 0.12,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.07,
+            "NO2_target": 9.55
         },
         {
             "year": 2023.0,
@@ -559,7 +627,9 @@
             "w_forecast": -0.03,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.7,
+            "NO2_target": 16.3
         },
         {
             "year": 2023.0,
@@ -575,7 +645,9 @@
             "w_forecast": -0.18,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.25,
+            "NO2_target": 17.57
         },
         {
             "year": 2023.0,
@@ -591,7 +663,9 @@
             "w_forecast": -0.33,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.67,
+            "NO2_target": 18.12
         },
         {
             "year": 2023.0,
@@ -607,7 +681,9 @@
             "w_forecast": -0.2,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.7,
+            "NO2_target": 20.7
         },
         {
             "year": 2023.0,
@@ -623,7 +699,9 @@
             "w_forecast": -0.07,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.3,
+            "NO2_target": 20.93
         },
         {
             "year": 2023.0,
@@ -639,7 +717,9 @@
             "w_forecast": 0.07,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.12,
+            "NO2_target": 18.98
         },
         {
             "year": 2023.0,
@@ -655,7 +735,9 @@
             "w_forecast": 0.16,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.2,
+            "NO2_target": 21.05
         },
         {
             "year": 2023.0,
@@ -671,7 +753,9 @@
             "w_forecast": 0.26,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.05,
+            "NO2_target": 21.52
         },
         {
             "year": 2023.0,
@@ -687,7 +771,9 @@
             "w_forecast": 0.36,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.15,
+            "NO2_target": 15.3
         },
         {
             "year": 2023.0,
@@ -703,7 +789,9 @@
             "w_forecast": 0.13,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.07,
+            "NO2_target": 11.77
         },
         {
             "year": 2023.0,
@@ -719,7 +807,9 @@
             "w_forecast": -0.1,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.1,
+            "NO2_target": 10.2
         },
         {
             "year": 2023.0,
@@ -735,7 +825,9 @@
             "w_forecast": -0.33,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.3,
+            "NO2_target": 10.2
         },
         {
             "year": 2023.0,
@@ -751,7 +843,9 @@
             "w_forecast": -0.21,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.1,
+            "NO2_target": 9.38
         },
         {
             "year": 2023.0,
@@ -767,7 +861,9 @@
             "w_forecast": -0.09,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 3.2,
+            "NO2_target": 7.9
         },
         {
             "year": 2022.0,
@@ -783,7 +879,9 @@
             "w_forecast": 0.76,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.3,
+            "NO2_target": 14.82
         },
         {
             "year": 2022.0,
@@ -799,7 +897,9 @@
             "w_forecast": 0.35,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.38,
+            "NO2_target": 14.57
         },
         {
             "year": 2022.0,
@@ -815,7 +915,9 @@
             "w_forecast": -0.05,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 5.32,
+            "NO2_target": 10.6
         },
         {
             "year": 2022.0,
@@ -831,7 +933,9 @@
             "w_forecast": -0.46,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 7.97,
+            "NO2_target": 9.25
         },
         {
             "year": 2022.0,
@@ -847,7 +951,9 @@
             "w_forecast": -0.01,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 9.9,
+            "NO2_target": 8.5
         },
         {
             "year": 2022.0,
@@ -863,7 +969,9 @@
             "w_forecast": 0.45,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.92,
+            "NO2_target": 6.78
         },
         {
             "year": 2022.0,
@@ -879,7 +987,9 @@
             "w_forecast": 0.91,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 10.55,
+            "NO2_target": 5.07
         },
         {
             "year": 2022.0,
@@ -895,7 +1005,9 @@
             "w_forecast": 0.67,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 15.18,
+            "NO2_target": 6.0
         },
         {
             "year": 2022.0,
@@ -911,7 +1023,9 @@
             "w_forecast": 0.43,
             "NO2_satellite": 0.48,
             "HCHO_satellite": 1.52,
-            "ratio_satellite": 0.31
+            "ratio_satellite": 0.31,
+            "O3_target": 21.57,
+            "NO2_target": 6.03
         },
         {
             "year": 2022.0,
@@ -927,7 +1041,9 @@
             "w_forecast": 0.2,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 25.15,
+            "NO2_target": 5.5
         },
         {
             "year": 2022.0,
@@ -943,7 +1059,9 @@
             "w_forecast": 0.27,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 22.12,
+            "NO2_target": 5.8
         },
         {
             "year": 2022.0,
@@ -959,7 +1077,9 @@
             "w_forecast": 0.35,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 17.57,
+            "NO2_target": 4.15
         },
         {
             "year": 2022.0,
@@ -975,7 +1095,9 @@
             "w_forecast": 0.43,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 17.98,
+            "NO2_target": 5.03
         },
         {
             "year": 2022.0,
@@ -991,7 +1113,9 @@
             "w_forecast": 0.4,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 11.88,
+            "NO2_target": 8.9
         },
         {
             "year": 2022.0,
@@ -1007,7 +1131,9 @@
             "w_forecast": 0.37,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 10.57,
+            "NO2_target": 15.15
         },
         {
             "year": 2022.0,
@@ -1023,7 +1149,9 @@
             "w_forecast": 0.34,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 9.43,
+            "NO2_target": 12.8
         },
         {
             "year": 2022.0,
@@ -1039,7 +1167,9 @@
             "w_forecast": 0.76,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.28,
+            "NO2_target": 16.9
         },
         {
             "year": 2022.0,
@@ -1055,7 +1185,9 @@
             "w_forecast": 1.18,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 7.42,
+            "NO2_target": 22.8
         },
         {
             "year": 2022.0,
@@ -1071,7 +1203,9 @@
             "w_forecast": 1.6,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.75,
+            "NO2_target": 22.9
         },
         {
             "year": 2022.0,
@@ -1087,7 +1221,9 @@
             "w_forecast": 1.43,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.53,
+            "NO2_target": 21.73
         },
         {
             "year": 2022.0,
@@ -1103,7 +1239,9 @@
             "w_forecast": 1.26,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 4.1,
+            "NO2_target": 17.0
         },
         {
             "year": 2022.0,
@@ -1119,7 +1257,9 @@
             "w_forecast": 1.08,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 9.1,
+            "NO2_target": 16.9
         },
         {
             "year": 2022.0,
@@ -1135,7 +1275,9 @@
             "w_forecast": 0.89,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.45,
+            "NO2_target": 15.05
         },
         {
             "year": 2022.0,
@@ -1151,7 +1293,9 @@
             "w_forecast": 0.69,
             "NO2_satellite": NaN,
             "HCHO_satellite": NaN,
-            "ratio_satellite": NaN
+            "ratio_satellite": NaN,
+            "O3_target": 6.53,
+            "NO2_target": 11.88
         }
     ]
 }

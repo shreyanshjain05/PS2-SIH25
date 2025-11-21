@@ -191,6 +191,11 @@ class DataPoint(BaseModel):
     HCHO_satellite: Optional[float] = None
     ratio_satellite: Optional[float] = None
 
+    # OPTIONAL past surface observations – if provided,
+    # they will be used to build rolling target features.
+    O3_target: Optional[float] = None
+    NO2_target: Optional[float] = None
+
 
 class InputData(BaseModel):
     site_id: str

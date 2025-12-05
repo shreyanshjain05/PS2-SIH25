@@ -1,7 +1,32 @@
 // app/api/[[...slugs]]/route.ts
 import { Elysia, t } from 'elysia';
+import { cors } from '@elysiajs/cors';
+import { auth } from '@/lib/auth';
 
 const app = new Elysia({ prefix: '/api' })
+  .use(cors({
+    origin: true, // Allow all origins for dev, or specify
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  }))
+  .mount(auth.handler)
+  .macro({
+    auth: {
+      async resolve({ status, request: { headers } }) {
+        const session = await auth.api.getSession({
+          headers,
+        });
+
+        if (!session) return status(401);
+
+        return {
+          user: session.user,
+          session: session.session,
+        };
+      },
+    },
+  })
   .get('/', () => 'Hello from Elysia + Next.js!')
   .post('/', ({ body }) => {
     return { received: body };

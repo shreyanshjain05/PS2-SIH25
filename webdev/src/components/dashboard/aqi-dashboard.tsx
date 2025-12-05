@@ -27,7 +27,10 @@ export default function AqiDashboard() {
   const [forecastLimit, setForecastLimit] = useState(48);
   const [hoveredData, setHoveredData] = useState<any>(null);
 
+  const [isMounted, setIsMounted] = useState(false);
+
   useEffect(() => {
+    setIsMounted(true);
     const fetchSites = async () => {
       const { data, error } = await api.api.aqi.sites.get();
       if (data && !error) {
@@ -137,28 +140,24 @@ export default function AqiDashboard() {
     }
   };
 
-  const filteredData = useMemo(() => {
+  const historicalData = useMemo(() => {
+    return chartData.filter(d => !d.isForecast);
+  }, [chartData]);
+
+  const forecastData = useMemo(() => {
     if (chartData.length === 0) return [];
-    
-    const firstForecastIndex = chartData.findIndex(d => d.isForecast);
-    if (firstForecastIndex === -1) return chartData;
-
-    const firstForecastTime = chartData[firstForecastIndex].rawTimestamp;
-    const cutoffTime = firstForecastTime + (forecastLimit * 3600 * 1000);
-
-    return chartData.filter(d => {
-        if (!d.isForecast) return true;
-        return d.rawTimestamp <= cutoffTime;
-    });
+    const forecast = chartData.filter(d => d.isForecast);
+    // Limit forecast based on slider
+    return forecast.slice(0, forecastLimit);
   }, [chartData, forecastLimit]);
 
   const handleMouseMove = (state: any) => {
-    if (state.activePayload && state.activePayload.length > 0) {
+    if (state && state.activePayload && state.activePayload.length > 0) {
       setHoveredData(state.activePayload[0].payload);
-    } else {
-      setHoveredData(null);
     }
   };
+
+  if (!isMounted) return null;
 
   return (
     <div className="p-6 space-y-8 max-w-7xl mx-auto">
@@ -217,15 +216,16 @@ export default function AqiDashboard() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Graph 1: Forecasted Ozone (O3) */}
         <Card>
             <CardHeader>
-                <CardTitle>Ozone (O3) Levels</CardTitle>
-                <CardDescription>Historical vs Forecasted (µg/m³)</CardDescription>
+                <CardTitle>Forecasted Ozone (O3)</CardTitle>
+                <CardDescription>Predicted O3 Levels (µg/m³)</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="h-[350px] w-full">
+                <div className="h-[350px] w-full" style={{ height: 350, width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={filteredData} onMouseMove={handleMouseMove} onMouseLeave={() => setHoveredData(null)}>
+                    <LineChart data={forecastData} onMouseMove={handleMouseMove}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis dataKey="timestamp" hide />
                         <YAxis className="text-xs" />
@@ -235,23 +235,23 @@ export default function AqiDashboard() {
                             labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
                         />
                         <Legend />
-                        <Line type="monotone" dataKey="O3" stroke="hsl(var(--chart-1))" name="Historical O3" dot={false} strokeWidth={2} />
-                        <Line type="monotone" dataKey="O3_Forecast" stroke="hsl(var(--chart-2))" name="Forecast O3" strokeDasharray="5 5" strokeWidth={2} />
+                        <Line type="monotone" dataKey="O3_Forecast" stroke="hsl(var(--chart-2))" name="Forecast O3" strokeWidth={2} dot={false} />
                     </LineChart>
                     </ResponsiveContainer>
                 </div>
             </CardContent>
         </Card>
 
+        {/* Graph 2: Forecasted Nitrogen Dioxide (NO2) */}
         <Card>
             <CardHeader>
-                <CardTitle>Nitrogen Dioxide (NO2) Levels</CardTitle>
-                <CardDescription>Historical vs Forecasted (µg/m³)</CardDescription>
+                <CardTitle>Forecasted Nitrogen Dioxide (NO2)</CardTitle>
+                <CardDescription>Predicted NO2 Levels (µg/m³)</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="h-[350px] w-full">
+                <div className="h-[350px] w-full" style={{ height: 350, width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={filteredData} onMouseMove={handleMouseMove} onMouseLeave={() => setHoveredData(null)}>
+                    <LineChart data={forecastData} onMouseMove={handleMouseMove}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis dataKey="timestamp" hide />
                         <YAxis className="text-xs" />
@@ -261,8 +261,7 @@ export default function AqiDashboard() {
                             labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
                         />
                         <Legend />
-                        <Line type="monotone" dataKey="NO2" stroke="hsl(var(--chart-3))" name="Historical NO2" dot={false} strokeWidth={2} />
-                        <Line type="monotone" dataKey="NO2_Forecast" stroke="hsl(var(--chart-4))" name="Forecast NO2" strokeDasharray="5 5" strokeWidth={2} />
+                        <Line type="monotone" dataKey="NO2_Forecast" stroke="hsl(var(--chart-4))" name="Forecast NO2" strokeWidth={2} dot={false} />
                     </LineChart>
                     </ResponsiveContainer>
                 </div>
@@ -270,42 +269,47 @@ export default function AqiDashboard() {
         </Card>
       </div>
 
-      {hoveredData && (
-        <Card className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl shadow-lg z-50 animate-in slide-in-from-bottom-4 fade-in">
-            <CardContent className="p-4 flex items-center justify-between gap-8">
-                <div>
-                    <p className="text-sm text-muted-foreground">Timestamp</p>
-                    <p className="font-medium">{hoveredData.timestamp}</p>
+      <Card className="mt-8 transition-all duration-200 ease-in-out">
+        <CardHeader>
+            <CardTitle>Forecast Details</CardTitle>
+            <CardDescription>
+                {hoveredData ? "Specific forecast values for the selected time." : "Hover over the charts above to see detailed forecast information."}
+            </CardDescription>
+        </CardHeader>
+        <CardContent>
+            {hoveredData ? (
+                <div className="space-y-4">
+                    <p className="text-lg">
+                        On <span className="font-semibold text-foreground">{hoveredData.timestamp}</span>, the forecasted conditions are:
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {hoveredData.O3_Forecast !== undefined && (
+                            <div className="flex items-center gap-3 p-4 rounded-lg border bg-card/50">
+                                <div className="w-3 h-3 rounded-full bg-[hsl(var(--chart-2))]" />
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Ozone (O3)</p>
+                                    <p className="text-2xl font-bold">{hoveredData.O3_Forecast.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">µg/m³</span></p>
+                                </div>
+                            </div>
+                        )}
+                        {hoveredData.NO2_Forecast !== undefined && (
+                            <div className="flex items-center gap-3 p-4 rounded-lg border bg-card/50">
+                                <div className="w-3 h-3 rounded-full bg-[hsl(var(--chart-4))]" />
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Nitrogen Dioxide (NO2)</p>
+                                    <p className="text-2xl font-bold">{hoveredData.NO2_Forecast.toFixed(2)} <span className="text-sm font-normal text-muted-foreground">µg/m³</span></p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <div className="flex gap-8">
-                    {hoveredData.O3 !== undefined && (
-                        <div>
-                            <p className="text-sm text-muted-foreground">Historical O3</p>
-                            <p className="font-bold text-chart-1">{hoveredData.O3.toFixed(2)}</p>
-                        </div>
-                    )}
-                    {hoveredData.O3_Forecast !== undefined && (
-                        <div>
-                            <p className="text-sm text-muted-foreground">Forecast O3</p>
-                            <p className="font-bold text-chart-2">{hoveredData.O3_Forecast.toFixed(2)}</p>
-                        </div>
-                    )}
-                    {hoveredData.NO2 !== undefined && (
-                        <div>
-                            <p className="text-sm text-muted-foreground">Historical NO2</p>
-                            <p className="font-bold text-chart-3">{hoveredData.NO2.toFixed(2)}</p>
-                        </div>
-                    )}
-                    {hoveredData.NO2_Forecast !== undefined && (
-                        <div>
-                            <p className="text-sm text-muted-foreground">Forecast NO2</p>
-                            <p className="font-bold text-chart-4">{hoveredData.NO2_Forecast.toFixed(2)}</p>
-                        </div>
-                    )}
+            ) : (
+                <div className="h-[120px] flex items-center justify-center text-muted-foreground border-2 border-dashed rounded-lg">
+                    Move your cursor over the graphs to view details
                 </div>
-            </CardContent>
-        </Card>
-      )}
+            )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

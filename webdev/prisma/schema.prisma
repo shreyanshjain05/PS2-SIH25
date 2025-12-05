@@ -6,25 +6,18 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  CITIZEN
-  GOVT
-  ENTERPRISE
-}
-
 model User {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String   @unique
+  email         String    @unique
   emailVerified Boolean?
   image         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  role          Role     @default(CITIZEN)
-
-  sessions Session[]
-  accounts Account[]
-  apiKeys  ApiKey[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          Role      @default(CITIZEN)
+  accounts      Account[]
+  apiKeys       ApiKey[]
+  sessions      Session[]
 
   @@map("user")
 }
@@ -33,14 +26,13 @@ model Session {
   id        String   @id
   userId    String
   expiresAt DateTime
-  token     String
+  token     String   @unique
   createdAt DateTime
   updatedAt DateTime
   ipAddress String?
   userAgent String?
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
   @@map("session")
 }
 
@@ -49,7 +41,6 @@ model Account {
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -59,6 +50,7 @@ model Account {
   password              String?
   createdAt             DateTime
   updatedAt             DateTime
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("account")
 }
@@ -78,12 +70,34 @@ model ApiKey {
   id        String    @id @default(cuid())
   key       String    @unique
   name      String?
+  start     String?
+  prefix    String?
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   expiresAt DateTime?
   lastUsed  DateTime?
-  rateLimit Int       @default(1000) // requests per hour
+  rateLimit Int       @default(1000)
+
+  // Better Auth specific fields
+  refillInterval      Int?
+  refillAmount        Int?
+  lastRefillAt        DateTime?
+  enabled             Boolean   @default(true)
+  rateLimitEnabled    Boolean   @default(false)
+  rateLimitTimeWindow Int?
+  rateLimitMax        Int?
+  requestCount        Int       @default(0)
+  remaining           Int?
+  lastRequest         DateTime?
+  metadata            String?
 
   @@map("api_key")
+}
+
+enum Role {
+  CITIZEN
+  GOVT
+  ENTERPRISE
 }

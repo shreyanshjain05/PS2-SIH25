@@ -14,11 +14,10 @@ export const auth = betterAuth({
   plugins: [
     apiKey({
         schema: {
-            // we will simply map to our ApiKey model but the plugin might handle its own table 
-            // Better Auth API plugin usually creates its own table or fields. 
-            // Let's rely on the plugin's default behavior or customization if needed.
-            // For now, using defaults. 
-        } 
+            apikey: {
+                modelName: "ApiKey"
+            }
+        }
     })
   ],
   user: {

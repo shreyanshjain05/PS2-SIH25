@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
+
 
 interface AqiData {
   historical_timestamps: string[];
@@ -49,7 +49,6 @@ export default function AqiDashboard() {
     setLoading(true);
     
     try {
-      // 1. Fetch real input data from our local API
       const sampleRes = await fetch('/api/aqi/sample-data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -64,7 +63,6 @@ export default function AqiDashboard() {
 
       const inputData = sampleJson.data;
 
-      // 2. Send this data to the forecast endpoint
       const { data, error } = await api.api.aqi.forecast.timeseries.post({
           site_id: selectedSite,
           data: inputData,
@@ -85,13 +83,8 @@ export default function AqiDashboard() {
 
           const mergedData: any[] = [];
           
-          // Combine historical data
-          // If the server didn't return historical targets (because the input CSV didn't have them),
-          // fallback to using the input features (O3_forecast, NO2_forecast) as the "historical" view.
           const hasServerHistory = response.historical_O3_target && response.historical_O3_target.length > 0;
           
-          // We need to match the historical timestamps with the input data
-          // The server returns the last N timestamps. We should take the last N records from inputData.
           const historyLength = response.historical_timestamps.length;
           const relevantInputData = inputData.slice(-historyLength);
 
@@ -99,7 +92,6 @@ export default function AqiDashboard() {
               let o3Val = response.historical_O3_target?.[idx];
               let no2Val = response.historical_NO2_target?.[idx];
 
-              // Fallback if server returned empty/null but we have input data
               if ((o3Val === undefined || o3Val === null) && relevantInputData[idx]) {
                   o3Val = relevantInputData[idx].O3_forecast;
               }
@@ -117,7 +109,6 @@ export default function AqiDashboard() {
               });
           });
 
-          // Combine forecast data
           if (response.forecast_timestamps && Array.isArray(response.forecast_timestamps)) {
               response.forecast_timestamps.forEach((ts, idx) => {
                   mergedData.push({
@@ -147,7 +138,7 @@ export default function AqiDashboard() {
   const forecastData = useMemo(() => {
     if (chartData.length === 0) return [];
     const forecast = chartData.filter(d => d.isForecast);
-    // Limit forecast based on slider
+
     return forecast.slice(0, forecastLimit);
   }, [chartData, forecastLimit]);
 

@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { prisma } from "@/lib/prisma";
+import { prismaBusiness } from "@/lib/db/business";
 
 export const businessService = new Elysia({ prefix: "/business" })
     .get("/data", async ({ headers, query }) => {

@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { prisma } from "@/lib/prisma";
+import { prismaGov } from "@/lib/db/gov";
 import { alertQueue } from "@/lib/queue";
 
 export const govService = new Elysia({ prefix: "/gov" })
@@ -7,7 +7,7 @@ export const govService = new Elysia({ prefix: "/gov" })
         // Log access audit
         const userId = headers['x-user-id'];
         if (userId) {
-             await prisma.auditLog.create({
+             await prismaGov.auditLog.create({
                 data: {
                     userId,
                     action: "VIEW_ANALYTICS",
@@ -18,8 +18,8 @@ export const govService = new Elysia({ prefix: "/gov" })
         }
 
         return {
-            totalCitizens: await prisma.citizen.count(),
-            totalBusinesses: await prisma.business.count(),
+            totalCitizens: 0, // Mocked: Cannot access Citizen DB directly
+            totalBusinesses: 0, // Mocked: Cannot access Business DB directly
             recentAlerts: [] // Retrieve from alert log if we have one
         };
     })

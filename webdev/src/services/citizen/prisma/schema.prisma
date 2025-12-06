@@ -1,0 +1,33 @@
+generator client {
+    provider = "prisma-client-js"
+    output   = "../../../../node_modules/@prisma/client-citizen"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+model Citizen {
+    id        String     @id @default(cuid())
+    userId    String     @unique // Link to Auth User (logical FK)
+    name      String?
+    phone     String?
+    address   String?
+    documents Document[]
+    createdAt DateTime   @default(now())
+    updatedAt DateTime   @updatedAt
+
+    @@map("citizen")
+}
+
+model Document {
+    id        String   @id @default(cuid())
+    citizenId String
+    citizen   Citizen  @relation(fields: [citizenId], references: [id])
+    fileUrl   String
+    name      String
+    type      String?
+    createdAt DateTime @default(now())
+
+    @@map("document")
+}

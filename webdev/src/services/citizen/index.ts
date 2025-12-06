@@ -1,5 +1,5 @@
 import { Elysia, t } from "elysia";
-import { prisma } from "@/lib/prisma";
+import { prismaCitizen } from "@/lib/db/citizen";
 
 // Define the Citizen Service app
 export const citizenService = new Elysia({ prefix: "/citizen" })
@@ -21,7 +21,7 @@ export const citizenService = new Elysia({ prefix: "/citizen" })
             throw new Error("Unauthorized: No user ID header");
         }
 
-        const citizen = await prisma.citizen.findUnique({
+        const citizen = await prismaCitizen.citizen.findUnique({
             where: { userId },
             include: { documents: true }
         });
@@ -35,7 +35,7 @@ export const citizenService = new Elysia({ prefix: "/citizen" })
             throw new Error("Unauthorized: No user ID header");
         }
 
-        const citizen = await prisma.citizen.upsert({
+        const citizen = await prismaCitizen.citizen.upsert({
             where: { userId },
             update: body,
             create: {

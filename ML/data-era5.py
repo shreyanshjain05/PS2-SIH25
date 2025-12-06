@@ -5,7 +5,7 @@ config_path = Path(__file__).parent / ".cdsapirc"
 
 ERA5_DIR = Path("era5_raw")
 ERA5_DIR.mkdir(parents=True, exist_ok=True)
-
+print(f'\n the path is {ERA5_DIR}')
 
 with config_path.open() as f:
     cfg = yaml.safe_load(f)
@@ -15,7 +15,6 @@ c = cdsapi.Client(
     key=cfg["key"],
     verify=cfg.get("verify", 1)
 )
-
 
 
 variables = [

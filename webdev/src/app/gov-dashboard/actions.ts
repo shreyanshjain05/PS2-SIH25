@@ -1,6 +1,7 @@
 "use server";
 
 import { prismaGov } from "@/lib/db/gov";
+import { alertQueue } from "@/lib/queue";
 import { revalidatePath } from "next/cache";
 
 export async function sendAlert(formData: FormData) {
@@ -14,15 +15,23 @@ export async function sendAlert(formData: FormData) {
     throw new Error("Missing required fields");
   }
 
-  await prismaGov.alert.create({
+  const alert = await prismaGov.alert.create({
     data: {
       title,
       message,
       severity,
       recipient,
       region,
-      status: "SENT", // Simulating immediate send
+      status: "PENDING",
     },
+  });
+
+  // Add to queue
+  await alertQueue.add("send-alert", {
+    alertId: alert.id,
+    title,
+    message,
+    recipient,
   });
 
   revalidatePath("/gov-dashboard");

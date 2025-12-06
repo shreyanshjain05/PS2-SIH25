@@ -1,41 +1,36 @@
-// app/api/[[...slugs]]/route.ts
-import { Elysia, t } from 'elysia';
-import { cors } from '@elysiajs/cors';
-import { auth } from '@/lib/auth';
+import { Elysia, t } from "elysia";
+import { cors } from "@elysiajs/cors";
+import { auth } from "@/lib/auth"; // Better Auth instance
+import { citizenService } from "@/services/citizen";
+import { businessService } from "@/services/business";
+import { govService } from "@/services/gov";
 
-const app = new Elysia({ prefix: '/api' })
+const app = new Elysia({ prefix: "/api" })
   .use(cors({
-    origin: true, // Allow all origins for dev, or specify
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
+      credentials: true,
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      origin: true // Allow all for dev
   }))
-  .mount(auth.handler)
-  .macro({
-    auth: {
-      async resolve({ status, request: { headers } }) {
-        const session = await auth.api.getSession({
-          headers,
-        });
-
-        if (!session) return status(401);
-
-        return {
-          user: session.user,
-          session: session.session,
-        };
-      },
-    },
+  // Global Auth Middleware (Gateway Layer)
+  .derive(async ({ request }) => {
+    const session = await auth.api.getSession({
+        headers: request.headers,
+    });
+    
+    return {
+        user: session?.user,
+        session: session?.session
+    };
   })
-  .get('/', () => 'Hello from Elysia + Next.js!')
-  .post('/', ({ body }) => {
-    return { received: body };
-  }, {
-    body: t.Object({
-      name: t.String(),
-      age: t.Number()
-    })
-  })
+  // Mount Services
+  .use(citizenService)
+  .use(businessService)
+  .use(govService)
+  // Health Check
+  .get("/health", () => ({ status: "ok" }))
+  
+  // Legacy AQI Routes (Proxy to Python Server)
   .group('/aqi', (app) => app
     .get('/sites', async () => {
       try {
@@ -43,7 +38,6 @@ const app = new Elysia({ prefix: '/api' })
         if (!res.ok) throw new Error('Failed to fetch sites');
         return await res.json();
       } catch (error) {
-        console.error('Error fetching sites:', error);
         return { error: 'Failed to connect to AQI server' };
       }
     })
@@ -56,7 +50,7 @@ const app = new Elysia({ prefix: '/api' })
         });
         return await res.json();
       } catch (error) {
-         return { error: 'Prediction failed' };
+        return { error: 'Prediction failed' };
       }
     }, {
       body: t.Object({
@@ -84,10 +78,9 @@ const app = new Elysia({ prefix: '/api' })
     })
   );
 
-// Export handler(s) for HTTP methods you want to support
-export const GET = app.fetch;
-export const POST = app.fetch;
-// (Similarly for PUT, DELETE etc. if needed)
+export const GET = app.handle;
+export const POST = app.handle;
+export const PUT = app.handle;
+export const DELETE = app.handle;
 
-// same route file
 export type App = typeof app;

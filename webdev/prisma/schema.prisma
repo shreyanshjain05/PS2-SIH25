@@ -1,9 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["public", "citizen", "business", "gov"]
 }
 
 model User {
@@ -20,6 +22,7 @@ model User {
   sessions      Session[]
 
   @@map("user")
+  @@schema("public")
 }
 
 model Session {
@@ -34,6 +37,7 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("session")
+  @@schema("public")
 }
 
 model Account {
@@ -53,6 +57,7 @@ model Account {
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("account")
+  @@schema("public")
 }
 
 model Verification {
@@ -64,6 +69,7 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+  @@schema("public")
 }
 
 model ApiKey {
@@ -94,10 +100,69 @@ model ApiKey {
   metadata            String?
 
   @@map("api_key")
+  @@schema("public")
 }
 
 enum Role {
   CITIZEN
   GOVT
   ENTERPRISE
+
+  @@schema("public")
+}
+
+// Citizen Service Models
+model Citizen {
+  id        String     @id @default(cuid())
+  userId    String     @unique // Link to Auth User
+  name      String?
+  phone     String?
+  address   String?
+  documents Document[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("citizen")
+  @@schema("citizen")
+}
+
+model Document {
+  id        String   @id @default(cuid())
+  citizenId String
+  citizen   Citizen  @relation(fields: [citizenId], references: [id])
+  fileUrl   String
+  name      String
+  type      String?
+  createdAt DateTime @default(now())
+
+  @@map("document")
+  @@schema("citizen")
+}
+
+// Business Service Models
+model Business {
+  id         String   @id @default(cuid())
+  userId     String   @unique // Link to Auth User
+  name       String
+  usageLimit Int      @default(1000)
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("business")
+  @@schema("business")
+}
+
+// Government Service Models
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  resource  String
+  ipAddress String?
+  details   String? // JSON string
+  createdAt DateTime @default(now())
+
+  @@map("audit_log")
+  @@schema("gov")
 }

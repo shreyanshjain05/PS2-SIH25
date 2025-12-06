@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -14,33 +7,46 @@ datasource db {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified Boolean?
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  sessions      Session[]
+  role          Role      @default(CITIZEN)
   accounts      Account[]
+  apiKeys       ApiKey[]
+  sessions      Session[]
+  alerts        Alert[]
+  alertLogs     AlertLog[]
+  policies      PolicyAction[]
 
-  @@unique([email])
   @@map("user")
+}
+
+model AlertLog {
+  id        String   @id @default(cuid())
+  message   String
+  region    String
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@map("alert_log")
 }
 
 model Session {
   id        String   @id
+  userId    String
   expiresAt DateTime
-  token     String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  token     String   @unique
+  createdAt DateTime
+  updatedAt DateTime
   ipAddress String?
   userAgent String?
-  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
-  @@index([userId])
   @@map("session")
 }
 
@@ -49,7 +55,6 @@ model Account {
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -57,21 +62,113 @@ model Account {
   refreshTokenExpiresAt DateTime?
   scope                 String?
   password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  createdAt             DateTime
+  updatedAt             DateTime
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@map("account")
 }
 
 model Verification {
-  id         String   @id
+  id         String    @id
   identifier String
   value      String
   expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime?
+  updatedAt  DateTime?
 
-  @@index([identifier])
   @@map("verification")
+}
+
+model ApiKey {
+  id        String    @id @default(cuid())
+  key       String    @unique
+  name      String?
+  start     String?
+  prefix    String?
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime?
+  lastUsed  DateTime?
+  rateLimit Int       @default(1000)
+
+  // Better Auth specific fields
+  refillInterval      Int?
+  refillAmount        Int?
+  lastRefillAt        DateTime?
+  enabled             Boolean   @default(true)
+  rateLimitEnabled    Boolean   @default(false)
+  rateLimitTimeWindow Int?
+  rateLimitMax        Int?
+  requestCount        Int       @default(0)
+  remaining           Int?
+  lastRequest         DateTime?
+  metadata            String?
+
+  @@map("api_key")
+}
+
+enum Role {
+  CITIZEN
+  GOVT
+  ENTERPRISE
+}
+
+model Alert {
+  id        String        @id @default(cuid())
+  title     String
+  message   String
+  severity  AlertSeverity
+  status    AlertStatus   @default(PENDING)
+  region    String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  createdBy String
+  user      User          @relation(fields: [createdBy], references: [id])
+
+  @@map("alert")
+}
+
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertStatus {
+  PENDING
+  SENT
+  RESOLVED
+}
+
+model PolicyAction {
+  id        String       @id @default(cuid())
+  type      PolicyType
+  status    PolicyStatus @default(ACTIVE)
+  region    String?
+  startDate DateTime     @default(now())
+  endDate   DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  createdBy String
+  user      User         @relation(fields: [createdBy], references: [id])
+
+  @@map("policy_action")
+}
+
+enum PolicyType {
+  ODD_EVEN
+  SCHOOL_CLOSURE
+  CONSTRUCTION_BAN
+  INDUSTRY_RESTRICTION
+  HEALTH_ADVISORY
+}
+
+enum PolicyStatus {
+  ACTIVE
+  INACTIVE
+  SCHEDULED
 }

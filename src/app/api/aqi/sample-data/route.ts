@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     // Data is at /Users/meet/PS2-SIH25/Data_SIH_2025 2
     // process.cwd() in Next.js is usually the project root (webdev)
     
-    const dataDir = path.resolve(process.cwd(), '..', 'Data_SIH_2025 2');
+    const dataDir = path.resolve(process.cwd(), '..', 'ML', 'Data_SIH_2025 2');
     const filePath = path.join(dataDir, `${siteId}_unseen_input_data.csv`);
 
     if (!fs.existsSync(filePath)) {

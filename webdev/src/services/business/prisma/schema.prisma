@@ -1,20 +1,84 @@
 generator client {
-    provider = "prisma-client-js"
-    output   = "../../../../node_modules/@prisma/client-business"
+    provider        = "prisma-client-js"
+    output          = "../../../../node_modules/@prisma/client-business"
+    previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
     provider = "postgresql"
 }
 
+enum PlanType {
+    FREE
+    STARTER
+    GROWTH
+    ENTERPRISE
+}
+
+enum PaymentStatus {
+    PENDING
+    SUCCESS
+    FAILED
+}
+
 model Business {
-    id         String   @id @default(cuid())
-    userId     String   @unique // Link to Auth User
-    name       String
-    usageLimit Int      @default(1000)
-    usageCount Int      @default(0)
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+    id     String @id @default(cuid())
+    userId String @unique
+    name   String
+
+    // Usage & Limits
+    credits       Int      @default(0) // Available API calls
+    walletBalance Float    @default(0.0) // Monetary balance (INR)
+    plan          PlanType @default(FREE)
+
+    transactions  Transaction[]
+    subscriptions Subscription[]
+    usageLogs     UsageLog[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
 
     @@map("business")
+}
+
+model Subscription {
+    id         String   @id @default(cuid())
+    businessId String
+    plan       PlanType
+    startDate  DateTime @default(now())
+    endDate    DateTime
+    isActive   Boolean  @default(true)
+    business   Business @relation(fields: [businessId], references: [id])
+
+    @@map("subscription")
+}
+
+model Transaction {
+    id                String        @id @default(cuid())
+    businessId        String
+    amount            Float
+    currency          String        @default("INR")
+    type              String // "CREDIT_PURCHASE", "PLAN_PURCHASE"
+    status            PaymentStatus @default(PENDING)
+    razorpayOrderId   String?
+    razorpayPaymentId String?
+
+    business Business @relation(fields: [businessId], references: [id])
+
+    createdAt DateTime @default(now())
+
+    @@map("transaction")
+}
+
+model UsageLog {
+    id         String   @id @default(cuid())
+    businessId String
+    amount     Int // Amount consumed (positive) or granted
+    action     String // e.g. "API_CALL", "KEY_GENERATION"
+    resource   String? // e.g. "/aqi/predict"
+    createdAt  DateTime @default(now())
+
+    business Business @relation(fields: [businessId], references: [id])
+
+    @@map("usage_log")
 }

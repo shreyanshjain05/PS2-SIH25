@@ -1,0 +1,4 @@
+CREATE DATABASE auth_db;
+CREATE DATABASE citizen_db;
+CREATE DATABASE business_db;
+CREATE DATABASE gov_db;

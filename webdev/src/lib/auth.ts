@@ -1,11 +1,12 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { prisma } from "./prisma";
+
 import { apiKey } from "better-auth/plugins";
+import { prismaAuth } from "@/lib/db/auth"; // Multi-DB Client
 
 export const auth = betterAuth({
   basePath: '/auth',
-  database: prismaAdapter(prisma, {
+  database: prismaAdapter(prismaAuth, {
     provider: "postgresql",
   }),
   emailAndPassword: {  

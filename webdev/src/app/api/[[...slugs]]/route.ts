@@ -116,7 +116,7 @@ const app = new Elysia({ prefix: "/api" })
     })
     .get('/sites', async () => {
       try {
-        const res = await fetch('http://localhost:8000/sites/');
+        const res = await fetch('http://ML_SERVICE_URL/sites/');
         if (!res.ok) throw new Error('Failed to fetch sites');
         return await res.json();
       } catch (error) {
@@ -125,7 +125,7 @@ const app = new Elysia({ prefix: "/api" })
     })
     .post('/predict', async ({ body }) => {
       try {
-        const res = await fetch('http://localhost:8000/predict/', {
+        const res = await fetch('http://ML_SERVICE_URL/predict/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
@@ -142,7 +142,7 @@ const app = new Elysia({ prefix: "/api" })
     })
     .post('/forecast/timeseries', async ({ body }) => {
       try {
-        const res = await fetch('http://localhost:8000/forecast/timeseries/', {
+        const res = await fetch('http://ML_SERVICE_URL/forecast/timeseries/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)

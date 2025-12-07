@@ -6,7 +6,6 @@ import { auth } from "@/lib/auth"; // We can't use better-auth server in middlew
 // Next.js Middleware runs on Edge. Prisma doesn't run on Edge by default without accelerate.
 // Better Auth has a specific way to handle middleware.
 // For now, I will use a simple fetch to the auth session endpoint or just check for the session cookie existence as a weak check, 
-// and do robust checks in layouts/pages. 
 // OR better-auth provides `auth.api.getSession` but that might need edge compatibility.
 
 // Let's implement a basic structure.

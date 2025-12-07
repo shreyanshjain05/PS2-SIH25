@@ -34,9 +34,9 @@ export const Navbar: React.FC = () => {
         <div className="flex gap-4 items-center font-medium">
           <span className="text-slate-200 tracking-wider">GOVERNMENT OF INDIA</span>
           <span className="w-px h-3 bg-slate-700"></span>
-          <span className="tracking-wider">MINISTRY OF EARTH SCIENCES</span>
+          <span className="tracking-wider">INDIAN SPACE RESEARCH ORGANISATION</span>
           <span className="hidden md:inline w-px h-3 bg-slate-700"></span>
-          <span className="hidden md:inline tracking-wider">ISRO</span>
+        
         </div>
         <div className="hidden md:flex gap-6 font-medium">
           <span className="hover:text-white cursor-pointer transition-colors">Screen Reader Access</span>

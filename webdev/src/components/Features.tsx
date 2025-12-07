@@ -159,13 +159,50 @@ export const TechStackStrip: React.FC = () => {
       <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(to right, #000 1px, transparent 1px)', backgroundSize: '100px 100%' }}></div>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-16 opacity-60 hover:opacity-100 transition-opacity duration-500">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-200 px-2 py-1 rounded bg-white">Powered By</span>
-          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 grayscale hover:grayscale-0 transition-all duration-500">
-            <span className="font-serif font-bold text-xl text-slate-800 tracking-tight">Sentinel-5P</span>
-            <span className="font-sans font-bold text-lg text-slate-700">TensorFlow</span>
-            <span className="font-mono font-bold text-lg text-slate-700">AWS GovCloud</span>
-            <span className="font-sans font-bold text-lg text-slate-700">ArcGIS</span>
-            <span className="font-serif font-bold text-xl text-slate-800 tracking-tight">MoES</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border border-slate-200 px-2 py-1 rounded bg-white">Built With</span>
+          <div className="flex flex-wrap justify-center items-center gap-8 md:gap-12 grayscale hover:grayscale-0 transition-all duration-500"><div className="flex items-center gap-8">
+
+  <div className="flex items-center gap-2">
+    <img src="/terraform.svg" alt="Terraform" className="h-6 w-6" />
+    <span className="font-serif font-bold text-xl text-slate-800 tracking-tight">
+      Terraform
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img src="/next-16-svgrepo-com.svg" alt="Next.js" className="h-6 w-6" />
+    <span className="font-sans font-bold text-lg text-slate-700">
+      Next.js
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img src="/azure.svg" alt="Microsoft Azure" className="h-6 w-6" />
+    <span className="font-mono font-bold text-lg text-slate-700">
+      Microsoft Azure
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img src="/elysiajs.svg" alt="ElysiaJS" className="h-6 w-6" />
+    <span className="font-sans font-bold text-lg text-slate-700">
+      ElysiaJS
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img
+      src="/better-auth_dark.svg"
+      alt="BetterAuth"
+      className="h-6"
+    />
+    <span className="font-serif font-bold text-xl text-slate-800 tracking-tight">
+      BetterAuth
+    </span>
+  </div>
+
+</div>
+
           </div>
         </div>
       </div>

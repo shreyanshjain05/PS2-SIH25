@@ -23,9 +23,9 @@ model Alert {
     id        String   @id @default(cuid())
     title     String
     message   String
-    severity  String   // LOW, MEDIUM, HIGH, CRITICAL
-    region    String?  // The region this alert is about
-    recipient String   // e.g., "NIC", "CPCB"
+    severity  String // LOW, MEDIUM, HIGH, CRITICAL
+    region    String? // The region this alert is about
+    recipient String // e.g., "NIC", "CPCB"
     status    String   @default("PENDING") // PENDING, SENT, FAILED
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -34,10 +34,10 @@ model Alert {
 }
 
 model PollutionReport {
-    id        String   @id @default(cuid())
-    region    String
-    aqi       Int
-    pollutant String   // PM2.5, PM10, NO2, etc.
+    id         String   @id @default(cuid())
+    region     String
+    aqi        Int
+    pollutant  String // PM2.5, PM10, NO2, etc.
     recordedAt DateTime @default(now())
 
     @@map("pollution_reports")

@@ -1,35 +1,82 @@
+version: '3.8'
+
 services:
-  postgres:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: my_postgres
+  db:
+    image: postgres:17-alpine
+    container_name: sih-db
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: mydb
-      
-      # Optional: provide a ready-to-use connection URL
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/mydb
-      # or for SSL disabled:
-      # DATABASE_URL: postgresql://postgres:postgres@postgres:5432/mydb?sslmode=disable
-
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sih_auth  # Default DB, others created by init script
+    volumes:
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    restart: unless-stopped
+    networks:
+      - sih-network
+
+  ml:
+    build:
+      context: ./ML
+      dockerfile: Dockerfile
+    container_name: sih-ml
+    ports:
+      - "8000:8000"
+    networks:
+      - sih-network
+    restart: always
 
   redis:
-    image: redis:alpine
-    container_name: my_redis
+    image: redis:7-alpine
+    container_name: sih-redis
     ports:
       - "6379:6379"
-    restart: unless-stopped
+    networks:
+      - sih-network
+    restart: always
+    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
+
+  web:
+    build:
+      context: ./webdev
+      dockerfile: Dockerfile
+    container_name: sih-web
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL_AUTH=postgresql://postgres:password@db:5432/sih_auth
+      - DATABASE_URL_CITIZEN=postgresql://postgres:password@db:5432/sih_citizen
+      - DATABASE_URL_BUSINESS=postgresql://postgres:password@db:5432/sih_business
+      - DATABASE_URL_GOV=postgresql://postgres:password@db:5432/sih_gov
+      - ML_SERVICE_URL=http://ml:8000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NEXT_PUBLIC_BASE_URL=http://localhost:3000
+      # Pass through other env vars as needed, or use .env file
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+      - NEXT_PUBLIC_RAZORPAY_KEY_ID=${NEXT_PUBLIC_RAZORPAY_KEY_ID}
+      - BETTER_AUTH_SECRET=SnNbH5dl2O5mdVjHmAEEkrSzH1qilBK9
+      - BETTER_AUTH_SECRET=SnNbH5dl2O5mdVjHmAEEkrSzH1qilBK9
+      - BETTER_AUTH_URL=http://localhost:3000
+      - ML_DATA_PATH=/app/ml_data
+    volumes:
+      - "./ML/Data_SIH_2025 2:/app/ml_data:ro"
+    depends_on:
+      - db
+      - ml
+      - redis
+    networks:
+      - sih-network
+    restart: always
 
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  sih-network:
+    driver: bridge

@@ -215,7 +215,7 @@ export default function AqiDashboard() {
             </CardHeader>
             <CardContent>
                 <div className="h-[350px] w-full" style={{ height: 350, width: '100%' }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <LineChart data={forecastData} onMouseMove={handleMouseMove}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis dataKey="timestamp" hide />
@@ -241,7 +241,7 @@ export default function AqiDashboard() {
             </CardHeader>
             <CardContent>
                 <div className="h-[350px] w-full" style={{ height: 350, width: '100%' }}>
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <LineChart data={forecastData} onMouseMove={handleMouseMove}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis dataKey="timestamp" hide />

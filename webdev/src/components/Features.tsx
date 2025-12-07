@@ -123,29 +123,71 @@ export const HowItWorks: React.FC = () => {
 
             <div className="grid md:grid-cols-4 gap-8">
                {[
-                 { title: "Acquisition", icon: Satellite, sub: "Sentinel-5P + Ground Sensors", step: "01" },
-                 { title: "Processing", icon: Cpu, sub: "Ensemble ML Models", step: "02" },
-                 { title: "Prediction", icon: Zap, sub: "48h Forecasting Engine", step: "03" },
-                 { title: "Delivery", icon: Smartphone, sub: "API & Public Alerts", step: "04" },
-               ].map((item, i) => (
-                 <FadeIn key={i} delay={i * 100} className="relative pt-4 md:pt-8 group">
-                    <div className="md:absolute top-6 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-2 border-teal-500 rounded-full z-10 hidden md:block group-hover:scale-125 transition-transform duration-300 shadow-sm"></div>
-                    
-                    <div className="bg-white hover:bg-white p-6 rounded-2xl border border-slate-200 hover:border-teal-100 shadow-sm hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1 relative overflow-hidden">
-                       <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-slate-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500 z-0"></div>
-                       <div className="relative z-10">
-                        <div className="flex justify-between items-start mb-5">
-                            <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-teal-600 shadow-sm group-hover:bg-teal-600 group-hover:text-white transition-colors">
-                              <item.icon className="w-6 h-6" />
-                            </div>
-                            <span className="text-4xl font-black text-slate-100 group-hover:text-slate-50 font-mono transition-colors">{item.step}</span>
-                        </div>
-                        <h4 className="font-bold text-slate-900 text-lg mb-2">{item.title}</h4>
-                        <p className="text-sm text-slate-500 leading-relaxed">{item.sub}</p>
-                       </div>
-                    </div>
-                 </FadeIn>
-               ))}
+  { 
+    title: "Acquisition", 
+    icon: Satellite, 
+    sub: "Satellite + Ground Sensors",
+    extra: "Raw multispectral readings are captured from orbit and merged with CPCB/IMD sensor grids.",
+    extra2: "Data is pre-cleaned for cloud interference, noise, and missing streams before ingestion.",
+    step: "01" 
+  },
+  { 
+    title: "Processing", 
+    icon: Cpu, 
+    sub: "Ensemble ML Models",
+    extra: "Multiple AI pipelines—neural nets, physics-based dispersion models, and statistical ensembles—run in parallel.",
+    extra2: "Feature engineering extracts precursor signals like NO₂ plumes, humidity shifts, and photochemical intensity.",
+    step: "02" 
+  },
+  { 
+    title: "Prediction", 
+    icon: Zap, 
+    sub: "48h Forecasting Engine",
+    extra: "Time-series fusion predicts pollutant movement, chemical reactions, and hotspot formation.",
+    extra2: "Confidence intervals are computed to flag areas with high uncertainty or atypical atmospheric behavior.",
+    step: "03" 
+  },
+  { 
+    title: "Delivery", 
+    icon: Smartphone, 
+    sub: "API & Public Alerts",
+    extra: "Validated results are streamed through secured APIs to ministry dashboards & local authorities.",
+    extra2: "High-risk districts auto-trigger alerts, SMS advisories, and integration with public health systems.",
+    step: "04" 
+  },
+].map((item, i) => (
+  <FadeIn key={i} delay={i * 100} className="relative pt-4 md:pt-8 group">
+    
+    <div className="md:absolute top-6 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-2 border-teal-500 rounded-full z-10 hidden md:block group-hover:scale-125 transition-transform duration-300 shadow-sm"></div>
+
+    <div className="bg-white hover:bg-white p-6 rounded-2xl border border-slate-200 hover:border-teal-100 shadow-sm hover:shadow-lg transition-all duration-300 group-hover:-translate-y-1 relative overflow-hidden">
+      
+      <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-slate-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-500 z-0"></div>
+      
+      <div className="relative z-10">
+        <div className="flex justify-between items-start mb-5">
+          <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl text-teal-600 shadow-sm group-hover:bg-teal-600 group-hover:text-white transition-colors">
+            <item.icon className="w-6 h-6" />
+          </div>
+          <span className="text-4xl font-black text-slate-100 group-hover:text-slate-50 font-mono transition-colors">
+            {item.step}
+          </span>
+        </div>
+
+        <h4 className="font-bold text-slate-900 text-lg mb-2">{item.title}</h4>
+
+        <p className="text-sm text-slate-500 leading-relaxed mb-2">{item.sub}</p>
+
+        {/* NEW EXTRA EXPLANATION LINES */}
+        <p className="text-xs text-slate-500 leading-relaxed mb-1">{item.extra}</p>
+        <p className="text-xs text-slate-500 leading-relaxed">{item.extra2}</p>
+
+      </div>
+    </div>
+  </FadeIn>
+))}
+            
+               
             </div>
          </div>
       </div>

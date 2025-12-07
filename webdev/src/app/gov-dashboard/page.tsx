@@ -26,45 +26,79 @@ import {
   Activity,
   Wind,
   Bell,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MONITORING_SITES, getSiteName } from "@/lib/sites";
+import { calculatePollutionScore } from "@/lib/aqi-utils";
 
 // Force dynamic rendering to prevent build-time database access
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 // Mock data generator for critical regions if DB is empty
 const getCriticalRegions = (reports: any[]) => {
   if (reports.length > 0) {
     return reports.filter((r: any) => r.aqi > 200);
   }
-  // Fallback mock data for demonstration
-  return [
+  // Fallback mock data for demonstration using real sites
+  // Using O3 and NO2 values to demonstrate the scoring logic
+  const mockData = [
     {
       id: "mock-1",
-      region: "Anand Vihar, Delhi",
-      aqi: 450,
-      pollutant: "PM2.5",
+      region: "site_1", // GT Karnal Road
+      o3: 120, // Moderate
+      no2: 300, // Very Poor -> Severe Category
       recordedAt: new Date(),
       forecast: "Rising",
     },
     {
       id: "mock-2",
-      region: "Sector 62, Noida",
-      aqi: 320,
-      pollutant: "PM10",
+      region: "site_4", // Narela
+      o3: 60, // Poor -> High Category
+      no2: 150, // Moderate
       recordedAt: new Date(),
       forecast: "Stable",
     },
     {
       id: "mock-3",
-      region: "Punjabi Bagh, Delhi",
-      aqi: 280,
-      pollutant: "NO2",
+      region: "site_6", // Rohini
+      o3: 60, // Satisfactory -> Low
+      no2: 50, // Satisfactory -> Low
       recordedAt: new Date(),
       forecast: "Falling",
     },
+    {
+      id: "mock-4",
+      region: "site_2", // Sirifort
+      o3: 170, // High
+      no2: 110, // High
+      recordedAt: new Date(),
+      forecast: "Rising", // Synergistic Case
+    },
   ];
+
+  return mockData
+    .map((d) => {
+      const score = calculatePollutionScore(d.o3, d.no2);
+      return {
+        ...d,
+        aqi: score.score, // Using max concentration as proxy for AQI display
+        pollutant: score.dominantPollutant,
+        category: score.category, // Low, Moderate, High, Very High, Severe
+        riskFactors: score.riskFactors,
+        isSynergistic: score.isSynergistic,
+        details: score.details,
+      };
+    })
+    .filter(
+      (d) =>
+        d.category === "High" ||
+        d.category === "Very High" ||
+        d.category === "Severe"
+    ); // Only show High+
 };
 
 export default async function GovDashboard() {
@@ -158,7 +192,9 @@ export default async function GovDashboard() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Average AQI</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Average Pollution Index
+            </CardTitle>
             <Wind className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -222,12 +258,26 @@ export default async function GovDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {criticalRegions.map((region: any) => {
               const isAlertSent = alertedRegions.has(region.region);
+              const regionName = getSiteName(region.region);
+
+              let TrendIcon = Minus;
+              let trendColor = "text-gray-500";
+              if (region.forecast === "Rising") {
+                TrendIcon = ArrowUpRight;
+                trendColor = "text-red-500";
+              } else if (region.forecast === "Falling") {
+                TrendIcon = ArrowDownRight;
+                trendColor = "text-green-500";
+              }
+
               return (
                 <Card
                   key={region.id}
                   className={`border-l-4 shadow-md hover:shadow-lg transition-shadow ${
                     isAlertSent
                       ? "border-l-gray-400 bg-gray-50"
+                      : region.category === "Severe"
+                      ? "border-l-purple-600 bg-red-50"
                       : "border-l-red-500"
                   }`}
                 >
@@ -235,61 +285,151 @@ export default async function GovDashboard() {
                     <div className="flex justify-between items-start">
                       <CardTitle
                         className={`text-lg font-bold flex items-center gap-2 ${
-                          isAlertSent ? "text-gray-600" : "text-red-700"
+                          isAlertSent ? "text-gray-600" : "text-slate-800"
                         }`}
                       >
                         {isAlertSent ? (
                           <CheckCircle className="h-5 w-5" />
                         ) : (
-                          <AlertTriangle className="h-5 w-5" />
+                          <AlertTriangle
+                            className={`h-5 w-5 ${
+                              region.category === "Severe"
+                                ? "text-purple-600"
+                                : "text-red-500"
+                            }`}
+                          />
                         )}
-                        {region.region}
+                        {regionName}
                       </CardTitle>
-                      <Badge
-                        variant={isAlertSent ? "secondary" : "destructive"}
-                        className="text-sm"
-                      >
-                        AQI: {region.aqi}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge
+                          variant={isAlertSent ? "secondary" : "destructive"}
+                          className={`text-sm ${
+                            region.category === "Severe" ? "bg-purple-600" : ""
+                          }`}
+                        >
+                          {region.category} Risk
+                        </Badge>
+                        <div
+                          className={`flex items-center text-xs font-medium ${trendColor}`}
+                        >
+                          <TrendIcon className="h-3 w-3 mr-1" />
+                          {region.forecast}
+                        </div>
+                      </div>
                     </div>
                     <CardDescription>
-                      High concentration of {region.pollutant} detected.
-                      <br />
-                      <span className="font-semibold text-slate-700">
-                        Forecast: {region.forecast || "Stable"}
+                      <span className="font-semibold block mb-1">
+                        Dominant: {region.pollutant}
+                        {region.isSynergistic && (
+                          <Badge
+                            variant="outline"
+                            className="ml-2 border-purple-500 text-purple-700 bg-purple-50"
+                          >
+                            Synergistic Effect
+                          </Badge>
+                        )}
                       </span>
+                      {region.details && (
+                        <div className="grid grid-cols-2 gap-2 text-xs mt-2 bg-white p-2 rounded border">
+                          <div>
+                            <span className="font-medium">NO2:</span>{" "}
+                            {region.details.NO2.val} ({region.details.NO2.level}
+                            )
+                          </div>
+                          <div>
+                            <span className="font-medium">O3:</span>{" "}
+                            {region.details.O3.val} ({region.details.O3.level})
+                          </div>
+                        </div>
+                      )}
+                      {region.riskFactors && region.riskFactors.length > 0 && (
+                        <div className="mt-3 space-y-1">
+                          <p className="text-xs font-semibold text-slate-700">
+                            Health Risks:
+                          </p>
+                          <ul className="list-disc list-inside text-xs text-slate-600">
+                            {region.riskFactors.map(
+                              (risk: string, idx: number) => (
+                                <li key={idx}>{risk}</li>
+                              )
+                            )}
+                          </ul>
+                        </div>
+                      )}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="text-sm text-muted-foreground mb-4">
                       Recorded at: {region.recordedAt.toLocaleString()}
                     </div>
-                    <form action={sendAlert}>
+                    <form action={sendAlert} className="space-y-4">
                       <input
                         type="hidden"
                         name="title"
-                        value={`Severe Pollution Alert: ${region.region}`}
+                        value={`${region.category} Pollution Alert: ${regionName}`}
                       />
                       <input
                         type="hidden"
                         name="message"
-                        value={`Critical AQI level of ${region.aqi} (${
-                          region.pollutant
-                        }) detected in ${region.region}. Forecast indicates ${
-                          region.forecast || "continued high levels"
-                        }. Immediate action required.`}
+                        value={`ALERT: ${
+                          region.category
+                        } pollution levels detected in ${regionName}. 
+Dominant Pollutant: ${region.pollutant}. 
+Risk Factors: ${region.riskFactors.join(" ")} 
+Forecast: ${region.forecast}. 
+Immediate action required.`}
                       />
-                      <input type="hidden" name="severity" value="CRITICAL" />
                       <input
                         type="hidden"
-                        name="recipient"
-                        value="NIC, CPCB, DM"
+                        name="severity"
+                        value={
+                          region.category === "Severe" ? "CRITICAL" : "HIGH"
+                        }
                       />
                       <input
                         type="hidden"
                         name="region"
                         value={region.region}
                       />
+
+                      {!isAlertSent && (
+                        <div className="space-y-2">
+                          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            Target Departments
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {[
+                              "Health Dept",
+                              "Traffic Police",
+                              "Education Board",
+                              "Industrial Control",
+                            ].map((dept) => (
+                              <label
+                                key={dept}
+                                className="flex items-center space-x-2 text-xs border p-2 rounded hover:bg-slate-50 cursor-pointer bg-white"
+                              >
+                                <input
+                                  type="checkbox"
+                                  name="recipient"
+                                  value={dept}
+                                  defaultChecked
+                                  className="rounded border-gray-300 text-red-600 focus:ring-red-500 h-3 w-3"
+                                />
+                                <span>{dept}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {isAlertSent && (
+                        <input
+                          type="hidden"
+                          name="recipient"
+                          value="Previously Sent"
+                        />
+                      )}
 
                       <Button
                         type="submit"

@@ -113,7 +113,7 @@ export const Hero: React.FC = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
                 </span>
-                MoES / ISRO Mission
+                ISRO Mission
               </div>
             </FadeIn>
             
@@ -134,11 +134,10 @@ export const Hero: React.FC = () => {
             <FadeIn delay={400}>
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button variant="primary" size="lg" withArrow className="shadow-xl shadow-teal-900/10 font-bold tracking-wide">
-                  Access Decision Support System
+                  View Forecast
                 </Button>
                 <Button variant="outline" size="lg" className="bg-white hover:bg-slate-50 border-slate-300 font-semibold tracking-wide">
-                  View Demo
-                </Button>
+                  Access API                 </Button>
               </div>
             </FadeIn>
           </div>

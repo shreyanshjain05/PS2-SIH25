@@ -3,7 +3,7 @@ import IORedis from "ioredis";
 import { prismaGov } from "../lib/db/gov";
 import { sendEmail } from "../lib/email";
 import { getSuggestions } from "../lib/suggestions";
-import { getDepartmentEmail } from "../lib/departments";
+import { getDepartmentEmail } from "../lib/department";
 import { generateEmailHtml } from "../lib/email-templates";
 
 const connection = new IORedis({

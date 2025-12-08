@@ -188,14 +188,13 @@ export default function AqiDashboard() {
   }, [forecastData]);
 
   const handleMouseMove = (state: any) => {
+    console.log('handleMouseMove called, state:', state);
     if (state && state.activePayload && state.activePayload.length > 0) {
-      setHoveredData(state.activePayload[0].payload);
-    }
-  };
-
-  const handleChartClick = (state: any) => {
-    if (state && state.activePayload && state.activePayload.length > 0) {
-      setHoveredData(state.activePayload[0].payload);
+      const data = state.activePayload[0].payload;
+      console.log('Mouse move data:', data);
+      setHoveredData(data);
+    } else {
+      console.log('No activePayload in mouse move');
     }
   };
 
@@ -352,7 +351,19 @@ export default function AqiDashboard() {
             <CardContent className="pt-6">
                 <div className="h-[400px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={combinedData} onMouseMove={handleMouseMove} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <AreaChart 
+                      data={combinedData} 
+                      onMouseMove={handleMouseMove} 
+                      onClick={(e: any) => {
+                        console.log('O3 AreaChart click event:', e);
+                        if (e && e.activePayload && e.activePayload.length > 0) {
+                          const data = e.activePayload[0].payload;
+                          console.log('Setting O3 data from chart click:', data);
+                          setHoveredData(data);
+                        }
+                      }}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
                         <defs>
                           <linearGradient id="colorO3" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
@@ -383,6 +394,7 @@ export default function AqiDashboard() {
                               boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                             }}
                             labelFormatter={(val) => `Hour ${val}`}
+                            cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
                         />
                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
                         {historicalData.length > 0 && (
@@ -401,7 +413,7 @@ export default function AqiDashboard() {
                             name="Historical O3" 
                             strokeWidth={2.5} 
                             dot={false}
-                            connectNulls 
+                            connectNulls
                         />
                         <Area 
                             type="monotone" 
@@ -412,7 +424,7 @@ export default function AqiDashboard() {
                             strokeWidth={2.5} 
                             strokeDasharray="5 5"
                             dot={false}
-                            connectNulls 
+                            connectNulls
                         />
                     </AreaChart>
                     </ResponsiveContainer>
@@ -448,7 +460,19 @@ export default function AqiDashboard() {
             <CardContent className="pt-6">
                 <div className="h-[400px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={combinedData} onMouseMove={handleMouseMove} onClick={handleChartClick} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <AreaChart 
+                      data={combinedData} 
+                      onMouseMove={handleMouseMove} 
+                      onClick={(e: any) => {
+                        console.log('NO2 AreaChart click event:', e);
+                        if (e && e.activePayload && e.activePayload.length > 0) {
+                          const data = e.activePayload[0].payload;
+                          console.log('Setting NO2 data from chart click:', data);
+                          setHoveredData(data);
+                        }
+                      }}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
                         <defs>
                           <linearGradient id="colorNO2" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/>
@@ -479,6 +503,7 @@ export default function AqiDashboard() {
                               boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                             }}
                             labelFormatter={(val) => `Hour ${val}`}
+                            cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
                         />
                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
                         {historicalData.length > 0 && (
@@ -497,7 +522,7 @@ export default function AqiDashboard() {
                             name="Historical NO2" 
                             strokeWidth={2.5} 
                             dot={false}
-                            connectNulls 
+                            connectNulls
                         />
                         <Area 
                             type="monotone" 
@@ -508,7 +533,7 @@ export default function AqiDashboard() {
                             strokeWidth={2.5} 
                             strokeDasharray="5 5"
                             dot={false}
-                            connectNulls 
+                            connectNulls
                         />
                     </AreaChart>
                     </ResponsiveContainer>

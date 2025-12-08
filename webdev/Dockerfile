@@ -67,6 +67,7 @@ COPY --from=builder /app/test_payload_2024.json ./test_payload_2024.json
 
 # Helper script for migrations
 COPY docker-entrypoint.sh /usr/local/bin/
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 USER nextjs

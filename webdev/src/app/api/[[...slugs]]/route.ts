@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"; // Better Auth instance
 import { citizenService } from "@/services/citizen";
 import { businessService } from "@/services/business";
 import { govService } from "@/services/gov";
+import { publicApiService } from "@/services/public-api";
 import { prismaAuth } from "@/lib/db/auth";
 import { logger } from "@/lib/logger";
 
@@ -250,6 +251,8 @@ const app = new Elysia({ prefix: "/api" })
   .use(citizenService)
   .use(businessService)
   .use(govService)
+  // Public API (API Key authenticated)
+  .use(publicApiService)
   // Health Check
   .get("/health", () => ({ status: "ok" }))
   

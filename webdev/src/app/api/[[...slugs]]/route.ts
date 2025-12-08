@@ -65,13 +65,55 @@ const aqiService = new Elysia({ prefix: '/aqi' })
     })
     .post('/forecast/timeseries', async ({ body }: { body: any }) => {
       try {
-        const res = await fetch(`${ML_SERVICE_URL}/forecast/timeseries/`, {
+        // Load test payload from file
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        const testPayloadPath = path.join(process.cwd(), '..', 'ML', 'test_payload_2024.json');
+        const testPayloadContent = await fs.readFile(testPayloadPath, 'utf-8');
+        const testPayload = JSON.parse(testPayloadContent);
+        
+        console.log('Using test payload with', testPayload.data.length, 'data points');
+        
+        const res = await fetch(`${ML_SERVICE_URL}/plots/timeseries/json/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
+          body: JSON.stringify(testPayload)
         });
-        return await res.json();
+        
+        const mlData = await res.json();
+        
+        console.log('ML Service Response:', JSON.stringify(mlData, null, 2));
+        console.log('ML Data keys:', Object.keys(mlData));
+        console.log('Has dates?', 'dates' in mlData);
+        console.log('Has historical?', 'historical' in mlData);
+        console.log('Has forecast?', 'forecast' in mlData);
+        
+        // Transform ML response (dates, historical, forecast) to Frontend expected format (AqiData)
+        if (mlData && mlData.dates) {
+            const transformed = {
+                historical_timestamps: mlData.dates,
+                forecast_timestamps: mlData.dates,
+                historical_O3_target: mlData.historical?.O3_target || [],
+                historical_NO2_target: mlData.historical?.NO2_target || [],
+                forecast_O3_target: mlData.forecast?.O3_target || [],
+                forecast_NO2_target: mlData.forecast?.NO2_target || []
+            };
+            console.log('Transformed data sample:', {
+                historical_timestamps_length: transformed.historical_timestamps.length,
+                forecast_timestamps_length: transformed.forecast_timestamps.length,
+                historical_O3_length: transformed.historical_O3_target.length,
+                historical_NO2_length: transformed.historical_NO2_target.length,
+                forecast_O3_length: transformed.forecast_O3_target.length,
+                forecast_NO2_length: transformed.forecast_NO2_target.length
+            });
+            return transformed;
+        }
+
+
+        
+        return mlData;
       } catch (error) {
+        console.error('ML Service Error:', error);
         return { error: 'Forecast failed' };
       }
     }, {

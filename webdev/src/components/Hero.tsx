@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, FadeIn, CountUp } from './UI';
 import { AlertTriangle, Wind, Droplets } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Link from "next/link";
 
 export const Hero: React.FC = () => {
   const [scrollY, setScrollY] = useState(0);
@@ -133,11 +134,14 @@ export const Hero: React.FC = () => {
 
             <FadeIn delay={400}>
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                
+                <Link href="/dashboard">
                 <Button variant="primary" size="lg" withArrow className="shadow-xl shadow-teal-900/10 font-bold tracking-wide">
                   View Forecast
-                </Button>
+                </Button>  </Link>
+                           <Link href="/dashboard/api-keys">
                 <Button variant="outline" size="lg" className="bg-white hover:bg-slate-50 border-slate-300 font-semibold tracking-wide">
-                  Access API                 </Button>
+                  Access API                 </Button>  </Link>
               </div>
             </FadeIn>
           </div>
@@ -169,7 +173,7 @@ export const Hero: React.FC = () => {
                       <div className="text-right">
                         <div className="text-[10px] text-slate-500 font-mono tracking-wider mb-0.5">CONFIDENCE</div>
                         <div className="text-teal-400 font-bold text-xl font-mono tracking-tight">
-                          <CountUp end={98.4} decimals={1} suffix="%" />
+                          <CountUp end={92.4} decimals={1} suffix="%" />
                         </div>
                       </div>
                     </div>

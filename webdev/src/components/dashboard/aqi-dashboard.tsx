@@ -193,6 +193,12 @@ export default function AqiDashboard() {
     }
   };
 
+  const handleChartClick = (state: any) => {
+    if (state && state.activePayload && state.activePayload.length > 0) {
+      setHoveredData(state.activePayload[0].payload);
+    }
+  };
+
   if (!isMounted) return null;
 
   return (
@@ -442,7 +448,7 @@ export default function AqiDashboard() {
             <CardContent className="pt-6">
                 <div className="h-[400px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={combinedData} onMouseMove={handleMouseMove} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <AreaChart data={combinedData} onMouseMove={handleMouseMove} onClick={handleChartClick} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                         <defs>
                           <linearGradient id="colorNO2" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3}/>
@@ -518,7 +524,7 @@ export default function AqiDashboard() {
               Interactive Data Point Details
             </CardTitle>
             <CardDescription>
-                {hoveredData ? "Real-time values for the selected hour" : "Hover over the charts above to explore detailed information"}
+                {hoveredData ? "Real-time values for the selected hour" : "Click or hover over the charts above to explore detailed information"}
             </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -587,7 +593,7 @@ export default function AqiDashboard() {
                 <div className="h-[180px] flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl bg-muted/5 hover:bg-muted/10 transition-colors">
                     <Activity className="w-12 h-12 mb-3 opacity-50" />
                     <p className="text-sm font-medium">Interactive Mode Active</p>
-                    <p className="text-xs mt-1">Hover over the time series charts to explore data points</p>
+                    <p className="text-xs mt-1">Click or hover over the time series charts to explore data points</p>
                 </div>
             )}
         </CardContent>

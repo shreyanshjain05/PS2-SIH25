@@ -74,9 +74,26 @@ export const businessService = new Elysia({ prefix: "/business" })
         keyId: process.env.RAZORPAY_KEY_ID
     };
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Create Order Error:", error);
-        throw new Error("Failed to create subscription order");
+        
+        // Detailed Razorpay Error Logging
+        if (error.statusCode) {
+             console.error("Razorpay Status Code:", error.statusCode);
+        }
+        if (error.error) {
+             console.error("Razorpay Error Details:", JSON.stringify(error.error, null, 2));
+        }
+
+        // Debug Config (Safe)
+        console.log("Debug Config:", {
+            hasKeyId: !!process.env.RAZORPAY_KEY_ID,
+            // Check if it's the placeholder
+            isPlaceholder: process.env.RAZORPAY_KEY_ID === "rzp_test_placeholder",
+            hasKeySecret: !!process.env.RAZORPAY_KEY_SECRET
+        });
+
+        throw new Error(`Failed to create subscription order: ${error.message || "Unknown Error"}`);
     }
   })
 

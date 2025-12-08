@@ -20,11 +20,11 @@ export async function POST(request: Request) {
     const siteId = siteIdRaw.startsWith('site_') ? siteIdRaw : `site_${siteIdRaw}`;
     
     // webdev is at /Users/meet/PS2-SIH25/webdev
-    // Data is at /Users/meet/PS2-SIH25/Data_SIH_2025 2
+    // Data is at /Users/meet/PS2-SIH25/ML/Data_SIH_2025_with_blh
     // process.cwd() in Next.js is usually the project root (webdev)
     
     // Use environment variable for data path (Docker) or fallback to relative path (Local)
-    const dataDir = process.env.ML_DATA_PATH || path.resolve(process.cwd(), '..', 'ML', 'Data_SIH_2025 2');
+    const dataDir = process.env.ML_DATA_PATH || path.resolve(process.cwd(), '..', 'ML', 'Data_SIH_2025_with_blh');
     const filePath = path.join(dataDir, `${siteId}_unseen_input_data.csv`);
 
     if (!fs.existsSync(filePath)) {

@@ -46,6 +46,45 @@ const aqiService = new Elysia({ prefix: '/aqi' })
         return { error: 'Failed to connect to AQI server' };
       }
     })
+    .post('/sample-data', async ({ body }: { body: any }) => {
+      try {
+        // Load sample data from the ML service's data directory
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        
+        // Construct path to sample data file
+        const siteId = body.site_id;
+        const fileName = `${siteId}_unseen_input_data.csv`;
+        
+        // In production (Docker), access ML container's data
+        // In development, access local ML data directory
+        const dataPath = process.env.NODE_ENV === 'production'
+          ? `/app/ML/Data_SIH_2025_with_blh/${fileName}`
+          : path.join(process.cwd(), '..', 'ML', 'Data_SIH_2025_with_blh', fileName);
+        
+        const csvContent = await fs.readFile(dataPath, 'utf-8');
+        const lines = csvContent.trim().split('\n');
+        const headers = lines[0].split(',');
+        
+        const data = lines.slice(1).map(line => {
+          const values = line.split(',');
+          const obj: any = {};
+          headers.forEach((header, i) => {
+            obj[header.trim()] = values[i] ? parseFloat(values[i]) : null;
+          });
+          return obj;
+        });
+        
+        return { data };
+      } catch (error) {
+        console.error('Sample data loading error:', error);
+        return { error: `Failed to load sample data: ${error}` };
+      }
+    }, {
+      body: t.Object({
+        site_id: t.String()
+      })
+    })
     .post('/predict', async ({ body }: { body: any }) => {
       try {
         const res = await fetch(`${ML_SERVICE_URL}/predict/`, {

@@ -1,10 +1,10 @@
 import { Worker } from "bullmq";
 import IORedis from "ioredis";
-import { prismaGov } from "../lib/db/gov";
-import { sendEmail } from "../lib/email";
-import { getSuggestions } from "../lib/suggestions";
-import { getDepartmentEmail } from "../lib/departments";
-import { generateEmailHtml } from "../lib/email-templates";
+import { prismaGov } from "@/lib/db/gov";
+import { sendEmail } from "@/lib/email";
+import { getSuggestions } from "@/lib/suggestions";
+import { getDepartmentEmail } from "@/lib/departments";
+import { generateEmailHtml } from "@/lib/email-templates";
 
 const connection = new IORedis({
   host: process.env.REDIS_HOST || "localhost",

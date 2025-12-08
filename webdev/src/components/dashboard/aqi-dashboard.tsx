@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 
-
 interface AqiData {
   historical_timestamps: number[];
   forecast_timestamps: number[];
@@ -30,8 +29,10 @@ interface AqiData {
 
 
 export default function AqiDashboard() {
-  const [sites, setSites] = useState<Record<string, { latitude: number; longitude: number }>>({});
-  const [selectedSite, setSelectedSite] = useState<string>('');
+  const [sites, setSites] = useState<
+    Record<string, { latitude: number; longitude: number }>
+  >({});
+  const [selectedSite, setSelectedSite] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
   const [forecastLimit, setForecastLimit] = useState(48);
@@ -58,34 +59,34 @@ export default function AqiDashboard() {
   const runForecast = async () => {
     if (!selectedSite) return;
     setLoading(true);
-    
+
     try {
-      const sampleRes = await fetch('/api/aqi/sample-data', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ site_id: selectedSite })
+      const sampleRes = await fetch("/api/aqi/sample-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ site_id: selectedSite }),
       });
       const sampleJson = await sampleRes.json();
-      
+
       if (!sampleRes.ok || !sampleJson.data) {
-          console.error("Failed to load sample data", sampleJson);
-          return;
+        console.error("Failed to load sample data", sampleJson);
+        return;
       }
 
       const inputData = sampleJson.data;
 
       const { data, error } = await api.api.aqi.forecast.timeseries.post({
-          site_id: selectedSite,
-          data: inputData,
-          historical_points: 72
+        site_id: selectedSite,
+        data: inputData,
+        historical_points: 72,
       });
 
       if (data && !error) {
-          const response = data as unknown as AqiData;
-          if ('error' in response) {
-              console.error("Server returned error:", (response as any).error);
-              return;
-          }
+        const response = data as unknown as AqiData;
+        if ("error" in response) {
+          console.error("Server returned error:", (response as any).error);
+          return;
+        }
 
           console.log("Received response:", response);
 
@@ -151,7 +152,7 @@ export default function AqiDashboard() {
   };
 
   const historicalData = useMemo(() => {
-    return chartData.filter(d => !d.isForecast);
+    return chartData.filter((d) => !d.isForecast);
   }, [chartData]);
 
   const forecastData = useMemo(() => {
@@ -201,26 +202,33 @@ export default function AqiDashboard() {
             <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Air Quality Forecast</h2>
             <p className="text-muted-foreground mt-1">AI-powered predictions for Ozone and NO2 levels with historical context</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-muted-foreground" />
+        <div className="flex items-center gap-3 flex-wrap min-w-fit">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-white rounded-lg border border-slate-200/60 shadow-sm hover:shadow-md transition-all duration-300">
+            <MapPin className="w-4 h-4 text-teal-600" />
             <Select value={selectedSite} onValueChange={setSelectedSite}>
-                <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Select a site" />
-                </SelectTrigger>
-                <SelectContent>
-                    {Object.keys(sites).map(site => (
-                        <SelectItem key={site} value={site}>{site}</SelectItem>
-                    ))}
-                </SelectContent>
+              <SelectTrigger className="border-0 text-slate-700 font-semibold text-sm h-auto p-0">
+                <SelectValue placeholder="Choose location" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(sites).map((site) => (
+                  <SelectItem key={site} value={site}>
+                    {site}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
-          <Button 
+          <Button
             onClick={runForecast}
             disabled={loading || !selectedSite}
+            className="bg-linear-to-r from-teal-600 to-teal-700 hover:from-teal-700 hover:to-teal-800 text-white font-semibold px-6 py-2.5 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 text-sm"
           >
-            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-            Run Forecast
+            {loading ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4 mr-2" />
+            )}
+            {loading ? "Running..." : "Forecast"}
           </Button>
         </div>
       </div>

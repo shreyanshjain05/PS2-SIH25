@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import Link from "next/link";
 
 // Define a type for the API Key structure returned by the client

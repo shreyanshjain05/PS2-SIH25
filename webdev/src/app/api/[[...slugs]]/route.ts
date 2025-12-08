@@ -13,30 +13,15 @@ const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
 
 
 const aqiService = new Elysia({ prefix: '/aqi' })
+    // Auth required but NO credits for internal AQI endpoints
+    // Credits are only for /api/v1/* public API
     .onBeforeHandle(async (context: any) => {
-        const { request, user, set } = context;
+        const { user, set } = context;
         if (!user) {
             set.status = 401;
-            return { error: "Unauthorized" };
+            return { error: "Unauthorized - Please login to access AQI data" };
         }
-        try {
-           const authHeader = request.headers.get("Authorization");
-           const consume = await businessService.handle(new Request("http://localhost/business/credits/consume", {
-               method: "POST",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({ userId: user.id, count: 100, resource: new URL(request.url).pathname })
-           }));
-           
-           const result = await consume.json();
-           if (!result.success) {
-               set.status = 402; // Payment Required
-               return { error: result.error || "Insufficient Credits" };
-           }
-        } catch (err) {
-            console.error("Credit Deduction Failed:", err);
-            set.status = 500;
-            return { error: "Internal Server Error during Credit Check" };
-        }
+        // No credit deduction for internal endpoints
     })
     .get('/sites', async () => {
       try {

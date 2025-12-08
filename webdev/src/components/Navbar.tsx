@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Button } from './UI';
+import Link from "next/link";
+
 
 export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -35,12 +37,9 @@ export const Navbar: React.FC = () => {
           <span className="text-slate-200 tracking-wider">GOVERNMENT OF INDIA</span>
           <span className="w-px h-3 bg-slate-700"></span>
           <span className="tracking-wider">INDIAN SPACE RESEARCH ORGANISATION</span>
+          <span className="tracking-wider">IN-SPACE</span>
         </div>
 
-        <div className="hidden md:flex gap-6 font-medium">
-          <span className="hover:text-white cursor-pointer transition-colors">Screen Reader Access</span>
-          <span className="hover:text-white cursor-pointer transition-colors">Skip to Main Content</span>
-        </div>
       </div>
 
       {/* Main Navbar */}
@@ -60,10 +59,10 @@ export const Navbar: React.FC = () => {
             {/* Title */}
             <a href="#home" className="flex flex-col cursor-pointer group">
               <span className="font-extrabold text-xl text-slate-900 tracking-tight group-hover:text-teal-700">
-                NAQFM <span className="text-teal-600">DSS</span>
+                PRAKSAT <span className="text-teal-600">MODEL</span>
               </span>
               <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mt-1">
-                National Air Quality Forecasting Mission
+                Prediction & Regional Air Quality Satellite
               </span>
             </a>
           </div>
@@ -83,7 +82,10 @@ export const Navbar: React.FC = () => {
 {/* RIGHT SECTION — LOGIN + LOGOS */}
 <div className="hidden md:flex items-center gap-8 ml-auto">
 
-  {/* Login */}
+
+
+{/* Login */}
+<Link href="/sign-up">
   <Button 
     variant="primary" 
     size="sm"
@@ -91,6 +93,8 @@ export const Navbar: React.FC = () => {
   >
     Official Login
   </Button>
+</Link>
+
 
   {/* ISRO + INSPACE LOGOS */}
   <div className="flex items-center gap-6">

@@ -28,6 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / 'Data_SIH_2025 2'
 ARTIFACT_DIR = BASE_DIR / "artifacts/FINAL_PRODUCTION_MODELS"
 ERA5_DATA_PATH = DATA_DIR / "era5_station_timeseries.csv"
+SITES_DATA_PATH = DATA_DIR / "lat_lon_sites.txt"
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -66,12 +67,41 @@ def load_era5_data():
     else:
         logger.warning(f"⚠️ ERA5 data not found at {ERA5_DATA_PATH}.")
 
+def load_sites_data():
+    if SITES_DATA_PATH.exists():
+        try:
+            # Read tab-separated file with flexible whitespace
+            df = pd.read_csv(SITES_DATA_PATH, sep=r'\t+', engine='python')
+            # Clean column names (strip whitespace)
+            df.columns = df.columns.str.strip()
+            
+            sites = []
+            for _, row in df.iterrows():
+                sites.append({
+                    "id": str(row["Site"]),
+                    "latitude": row["Latitude N"],
+                    "longitude": row["Longitude E"],
+                    "name": f"Site {row['Site']}" # Default name if not present
+                })
+            return sites
+        except Exception as e:
+            logger.error(f"Error loading sites data: {e}")
+            return []
+    else:
+        logger.warning(f"⚠️ Sites data not found at {SITES_DATA_PATH}.")
+        return []
+
 def prepare_features(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     if "datetime" in df.columns:
         if not pd.api.types.is_datetime64_any_dtype(df["datetime"]):
             df["datetime"] = pd.to_datetime(df["datetime"])
         df = df.sort_values(["site", "datetime"]).reset_index(drop=True)
+    
+    # Coerce numeric columns (handle JSON string inputs)
+    for col in df.columns:
+        if col not in ["site", "datetime", "date", "timestamp", "name", "id"]:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
     
     # Merge ERA5
     if era5_data is not None and "era5_blh" not in df.columns:
@@ -240,6 +270,16 @@ async def run_forecast_pipeline(df: pd.DataFrame, site_id: str, resample: Option
         df = df.sort_values("datetime").reset_index(drop=True)
     
     # Init targets if missing (Essential for recursion)
+    if "site" not in df.columns: 
+        # Extract numeric site ID
+        import re
+        try:
+            num = re.search(r'\d+', str(site_id))
+            val = float(num.group()) if num else 0.0
+            df["site"] = val
+        except:
+            df["site"] = 0.0
+            
     if "O3_target" not in df.columns: df["O3_target"] = np.nan
     if "NO2_target" not in df.columns: df["NO2_target"] = np.nan
         
@@ -252,15 +292,25 @@ async def run_forecast_pipeline(df: pd.DataFrame, site_id: str, resample: Option
         start_idx = nan_indices[0]
         
         # 1. Loop through missing rows
+        window_size = 60
         for i in range(start_idx, len(df)):
-            # Recalculate features based on updated history (Lags filled by previous loop)
-            df_prep = prepare_features(df)
-            row_df = df_prep.iloc[[i]].copy()
+            # Optimization: Slice window to avoid recalculating features for entire history
+            # We need enough history for lags (24h) + rolling windows (24h) -> ~48h + buffer
+            w_start = max(0, i - window_size)
+            w_end = i + 1
+            df_window = df.iloc[w_start:w_end].copy()
+            
+            # Recalculate features on small window
+            df_prep = prepare_features(df_window)
+            
+            # Take the last row (corresponding to current step 'i')
+            # prepare_features resets index, so it's always the last row
+            row_df = df_prep.iloc[[-1]].copy()
             
             # Predict single step
             step_preds = predict_single_step(row_df)
             
-            # Fill Gap
+            # Fill Gap in main dataframe
             if "O3_target" in step_preds: df.at[i, "O3_target"] = step_preds["O3_target"][0]
             if "NO2_target" in step_preds: df.at[i, "NO2_target"] = step_preds["NO2_target"][0]
         
@@ -294,6 +344,13 @@ async def run_forecast_pipeline(df: pd.DataFrame, site_id: str, resample: Option
 # ==============================================================================
 
 # --- A. Forecast (Default) ---
+@app.get("/sites/")
+async def get_sites():
+    sites = await run_in_threadpool(load_sites_data)
+    if not sites:
+        raise HTTPException(status_code=404, detail="No sites data available")
+    return sites
+
 @app.post("/forecast/json/")
 async def forecast_json(
     payload: JsonInput, 

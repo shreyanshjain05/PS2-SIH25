@@ -7,8 +7,17 @@ export async function POST(request: Request) {
   try {
     const { site_id } = await request.json();
     
-    // Default to site_1 if not specified or file doesn't exist
-    const siteId = site_id || 'site_1';
+    // Default to site_1 if not specified
+    let siteIdRaw = site_id ? String(site_id) : '1';
+    
+    // Normalize site ID:
+    // 1. Remove .0 suffix if present (e.g., "1.0" -> "1")
+    if (siteIdRaw.endsWith('.0')) {
+        siteIdRaw = siteIdRaw.slice(0, -2);
+    }
+    
+    // 2. Add 'site_' prefix if not present
+    const siteId = siteIdRaw.startsWith('site_') ? siteIdRaw : `site_${siteIdRaw}`;
     
     // webdev is at /Users/meet/PS2-SIH25/webdev
     // Data is at /Users/meet/PS2-SIH25/Data_SIH_2025 2
@@ -33,7 +42,11 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ data: records });
+    // OPTIMIZATION: Limit to last 500 records to ensure fast forecast response
+    // The full dataset contains ~10k records which takes ~2 mins to forecast recursively.
+    const limitedRecords = records.slice(-500);
+
+    return NextResponse.json({ data: limitedRecords });
     
   } catch (error) {
     console.error('Error reading sample data:', error);

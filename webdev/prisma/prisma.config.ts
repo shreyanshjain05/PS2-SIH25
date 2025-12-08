@@ -1,8 +1,7 @@
-import { defineConfig, env } from 'prisma/config';
+import { defineConfig } from '@prisma/migrate';
 
 export default defineConfig({
-  schema: 'schema.prisma',
   datasource: {
-    url: env('DATABASE_URL_AUTH'),
+    url: process.env.DATABASE_URL!,
   },
 });

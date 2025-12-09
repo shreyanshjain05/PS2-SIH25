@@ -271,28 +271,14 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
   };
 
   const runForecast = async () => {
-    if (!selectedSite) return;
+    if (!selectedSite || !forecastDate) return;
     setLoading(true);
 
     try {
-      const sampleRes = await fetch("/api/aqi/sample-data", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ site_id: selectedSite }),
-      });
-      const sampleJson = await sampleRes.json();
-
-      if (!sampleRes.ok || !sampleJson.data) {
-        console.error("Failed to load sample data", sampleJson);
-        return;
-      }
-
-      const inputData = sampleJson.data;
-
+      // Send forecast_date to the API - it will load the correct CSV data
       const { data, error } = await api.api.aqi.forecast.timeseries.post({
         site_id: selectedSite,
-        data: inputData,
-        historical_points: 72,
+        forecast_date: forecastDate, // yyyy-MM-dd format
       });
 
       if (data && !error) {
@@ -613,8 +599,15 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
     const dateSet = new Set<string>();
     chartData.forEach((d) => {
       if (d.date) {
-        // Extract date part only (YYYY-MM-DD)
-        const datePart = d.date.split(" ")[0];
+        // Handle both Date objects and strings
+        let datePart: string;
+        if (d.date instanceof Date) {
+          datePart = format(d.date, "yyyy-MM-dd");
+        } else if (typeof d.date === "string") {
+          datePart = d.date.split(" ")[0];
+        } else {
+          return;
+        }
         dateSet.add(datePart);
       }
     });
@@ -1084,96 +1077,6 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
             <p className="text-base text-center mt-3 text-muted-foreground">
               Showing {forecastData.length} of {maxForecastHours} forecast hours
             </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* View Options Card - for switching between full view and daily view */}
-      {chartData.length > 0 && availableDates.length > 0 && (
-        <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-indigo-600" />
-              View Options
-            </CardTitle>
-            <CardDescription>
-              Switch between full forecast view or filter by specific day
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === "full" ? "default" : "outline"}
-                  onClick={() => {
-                    setViewMode("full");
-                    setSelectedDate(null);
-                  }}
-                  className="text-sm"
-                >
-                  Full Forecast View
-                </Button>
-                <Button
-                  variant={viewMode === "daily" ? "default" : "outline"}
-                  onClick={() => setViewMode("daily")}
-                  className="text-sm"
-                >
-                  24-Hour Daily View
-                </Button>
-              </div>
-
-              {viewMode === "daily" && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Select
-                    value={selectedDate || ""}
-                    onValueChange={(val) => setSelectedDate(val)}
-                  >
-                    <SelectTrigger className="w-[220px] bg-white dark:bg-slate-900">
-                      <SelectValue placeholder="Select a day to view" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectableDates.map((date) => (
-                        <SelectItem key={date} value={date}>
-                          {new Date(date).toLocaleDateString("en-US", {
-                            weekday: "short",
-                            year: "numeric",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedDate && (
-                    <Badge
-                      variant="secondary"
-                      className="text-sm bg-indigo-100 dark:bg-indigo-900/50"
-                    >
-                      📊 Showing 24 hours for{" "}
-                      {new Date(selectedDate).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </Badge>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {viewMode === "daily" && !selectedDate && (
-              <p className="text-sm text-amber-600 dark:text-amber-400">
-                ⚠️ Please select a specific date from the dropdown to view its
-                24-hour data.
-              </p>
-            )}
-
-            <div className="p-3 bg-white/50 dark:bg-slate-900/50 rounded-lg border">
-              <p className="text-sm text-muted-foreground">
-                <strong>Forecast data range:</strong> {availableDates[0]} to{" "}
-                {availableDates[availableDates.length - 1]} (
-                {availableDates.length} days total)
-              </p>
-            </div>
           </CardContent>
         </Card>
       )}

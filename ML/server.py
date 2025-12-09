@@ -437,6 +437,89 @@ async def get_sites():
         raise HTTPException(status_code=404, detail="No sites data available")
     return sites
 
+class ForecastByDateInput(BaseModel):
+    site_id: str
+    forecast_date: str  # YYYY-MM-DD format
+
+@app.post("/forecast/by-date/")
+async def forecast_by_date(payload: ForecastByDateInput):
+    """
+    Forecast for a specific date. Loads data from CSV automatically.
+    forecast_date is the date we want to predict FOR.
+    We load the PREVIOUS day's data as input (since predictable_date = available_date + 1).
+    """
+    from datetime import datetime, timedelta
+    
+    site_id = payload.site_id
+    forecast_date = payload.forecast_date
+    
+    # Parse forecast date and get the input date (previous day)
+    try:
+        target_date = datetime.strptime(forecast_date, "%Y-%m-%d")
+        input_date = target_date - timedelta(days=1)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {forecast_date}. Use YYYY-MM-DD")
+    
+    input_year = input_date.year
+    input_month = input_date.month
+    input_day = input_date.day
+    
+    logger.info(f"Forecast date: {forecast_date}, Loading input data for: {input_year}-{input_month:02d}-{input_day:02d}")
+    
+    # Try to load data from both unseen_input_data and train_data files
+    df_filtered = pd.DataFrame()
+    
+    for file_type in ["unseen_input_data", "train_data"]:
+        file_path = DATA_DIR / f"site_{site_id}_{file_type}.csv"
+        
+        if not file_path.exists():
+            continue
+        
+        try:
+            df = pd.read_csv(file_path)
+            
+            # Filter for the input date (24 hours before forecast date)
+            df_date = df[
+                (df["year"].astype(int) == input_year) & 
+                (df["month"].astype(int) == input_month) & 
+                (df["day"].astype(int) == input_day)
+            ].copy()
+            
+            if not df_date.empty:
+                df_filtered = df_date
+                logger.info(f"Found data in {file_type} for site {site_id}")
+                break
+                
+        except Exception as e:
+            logger.warning(f"Error reading {file_path}: {e}")
+            continue
+    
+    if df_filtered.empty:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"No data found for date {input_year}-{input_month:02d}-{input_day:02d} in site {site_id}"
+        )
+    
+    try:
+        # Sort by hour and take 24 hours
+        df_filtered = df_filtered.sort_values("hour").head(24)
+        
+        logger.info(f"Found {len(df_filtered)} data points for site {site_id}, date {input_year}-{input_month:02d}-{input_day:02d}")
+        
+        # Create datetime column from year, month, day, hour
+        df_filtered["datetime"] = pd.to_datetime(
+            df_filtered[["year", "month", "day", "hour"]].astype(int).rename(columns={"hour": "hour"})
+        )
+        
+        # Run the forecast pipeline
+        return await run_forecast_pipeline(df_filtered, site_id)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error loading data for site {site_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error loading data: {str(e)}")
+
 @app.post("/forecast/json/")
 async def forecast_json(
     payload: JsonInput, 
@@ -577,7 +660,6 @@ async def websocket_predict(websocket: WebSocket):
             # Send response with actual, historical, predicted, forecast, and metrics
             ws_response = {
                 "dates": res.get("dates", []),
-                "historical": historical,
                 "actual": res.get("actual", {}),
                 "historical": res.get("historical", {}),
                 "predicted": res.get("predicted", {}),

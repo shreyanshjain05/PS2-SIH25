@@ -2,6 +2,7 @@
 
 import { Navbar } from "@/components/Navbar";
 import { Hero } from "@/components/Hero";
+import Slider from "@/components/Slider";
 import {
   PollutantExplainer,
   RoleBasedAccess,
@@ -39,7 +40,10 @@ export default function Home() {
         <section className="scroll-mt-20">
           <HowItWorks />
         </section>
-
+        
+<section className="scroll-mt-20">
+  <Slider initial={75} />
+</section>
         {/* 5. The Demo (Deep Dark) */}
         <section id="monitoring" className="scroll-mt-20">
           <MapViz />

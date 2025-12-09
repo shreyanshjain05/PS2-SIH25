@@ -527,7 +527,6 @@ async def websocket_predict(websocket: WebSocket):
             df = pd.DataFrame(input_data["data"])
             
             # Run full pipeline to ensure lags are handled correctly
-            # We assume realtime data is sequential
             res = await run_forecast_pipeline(df, input_data.get("site_id", "1"))
             
             # Send comprehensive response with actual vs predicted for plotting

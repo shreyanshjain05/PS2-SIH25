@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { api } from "@/lib/eden";
 import {
   LineChart,
@@ -24,7 +24,9 @@ import {
   Wind,
   Activity,
   BarChart3,
-  Calendar as CalendarIcon,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   Card,
@@ -44,13 +46,6 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { getSiteName } from "@/lib/sites";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
 
 // New API response format matching ML service
 export interface AqiData {
@@ -110,10 +105,6 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
   const [maxForecastHours, setMaxForecastHours] = useState(72);
   const [hoveredData, setHoveredData] = useState<any>(null);
 
-  // Date selection state
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [viewMode, setViewMode] = useState<"full" | "daily">("full");
-
   // Chart view mode: "actual-forecast" or "historical-forecast"
   const [o3ViewMode, setO3ViewMode] = useState<
     "actual-forecast" | "historical-forecast"
@@ -121,6 +112,10 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
   const [no2ViewMode, setNo2ViewMode] = useState<
     "actual-forecast" | "historical-forecast"
   >("historical-forecast");
+
+  // Date selection state
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"full" | "daily">("full");
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -491,44 +486,50 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
   }, [chartData]);
 
   // Check if a date can be selected (previous date must have data)
-  const isDateSelectable = useCallback(
-    (date: Date) => {
-      const dateStr = date.toISOString().split("T")[0];
-      const previousDate = new Date(date);
-      previousDate.setDate(previousDate.getDate() - 1);
-      const previousDateStr = previousDate.toISOString().split("T")[0];
+  const isDateSelectable = (dateStr: string): boolean => {
+    const dateIndex = availableDates.indexOf(dateStr);
+    // First date is always not selectable (no previous day)
+    if (dateIndex <= 0) return false;
+    // Check if previous date exists
+    return true;
+  };
 
-      // Check if this date exists in the data
-      const hasCurrentDate = availableDates.includes(dateStr);
-      // Check if previous date exists in the data
-      const hasPreviousDate = availableDates.includes(previousDateStr);
-
-      // The date can be selected only if it exists AND the previous date also exists
-      return hasCurrentDate && hasPreviousDate;
-    },
-    [availableDates]
-  );
+  // Get selectable dates (dates where previous day also has data)
+  const selectableDates = useMemo(() => {
+    return availableDates.filter((date, index) => index > 0);
+  }, [availableDates]);
 
   // Get the data filtered by selected date (24 hours)
   const dailyFilteredData = useMemo(() => {
     if (!selectedDate || viewMode !== "daily") return null;
 
-    const dateStr = selectedDate.toISOString().split("T")[0];
-
-    return chartData.filter((d) => {
-      if (!d.date) return false;
-      const datePart = d.date.split(" ")[0];
-      return datePart === dateStr;
-    });
+    return chartData
+      .filter((d) => {
+        if (!d.date) return false;
+        const datePart = d.date.split(" ")[0];
+        return datePart === selectedDate;
+      })
+      .map((d, index) => ({
+        ...d,
+        // Override rawTimestamp to show 0-23 hours for daily view
+        hourOfDay: index,
+        displayHour: d.date.split(" ")[1]?.substring(0, 5) || `${index}:00`,
+      }));
   }, [chartData, selectedDate, viewMode]);
 
   const combinedData = useMemo(() => {
-    // If daily view mode with selected date, show only that day's data
+    // If in daily view mode with a selected date, use filtered data
     if (
       viewMode === "daily" &&
       dailyFilteredData &&
       dailyFilteredData.length > 0
     ) {
+      console.log(
+        "Using daily filtered data for date:",
+        selectedDate,
+        "Points:",
+        dailyFilteredData.length
+      );
       return dailyFilteredData;
     }
 
@@ -557,10 +558,10 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
     }
 
     return combined;
-  }, [historicalData, forecastData, viewMode, dailyFilteredData]);
+  }, [historicalData, forecastData, viewMode, dailyFilteredData, selectedDate]);
 
   const stats = useMemo(() => {
-    // Use daily filtered data if in daily view, otherwise use forecast data
+    // Use daily filtered data if in daily view mode, otherwise use forecast data
     const dataForStats =
       viewMode === "daily" && dailyFilteredData && dailyFilteredData.length > 0
         ? dailyFilteredData
@@ -568,12 +569,12 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
 
     if (dataForStats.length === 0) return null;
 
-    // Get O3 values - prefer forecast values, fallback to historical
+    // Get O3 values - prefer forecast values, fallback to historical/actual
     const o3Values = dataForStats
-      .map((d) => d.O3_Forecast ?? d.O3)
+      .map((d) => d.O3_Forecast ?? d.O3 ?? d.O3_Actual)
       .filter((v) => v !== undefined && v !== null) as number[];
     const no2Values = dataForStats
-      .map((d) => d.NO2_Forecast ?? d.NO2)
+      .map((d) => d.NO2_Forecast ?? d.NO2 ?? d.NO2_Actual)
       .filter((v) => v !== undefined && v !== null) as number[];
 
     if (o3Values.length === 0 || no2Values.length === 0) return null;
@@ -602,22 +603,6 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
       console.log("No activePayload in mouse move");
     }
   };
-
-  // Format X-axis label based on view mode
-  const formatXAxisLabel = useCallback(
-    (dataPoint: any) => {
-      if (viewMode === "daily" && dataPoint?.date) {
-        // Extract hour from datetime string like "2024-06-15 01:00:00"
-        const timePart = dataPoint.date.split(" ")[1];
-        if (timePart) {
-          const hour = timePart.split(":")[0];
-          return `${hour}:00`;
-        }
-      }
-      return `${dataPoint?.rawTimestamp ?? 0}h`;
-    },
-    [viewMode]
-  );
 
   if (!isMounted) return null;
 
@@ -676,108 +661,6 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
           </Button>
         </div>
       </div>
-
-      {/* Date Selection Card */}
-      {chartData.length > 0 && (
-        <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-indigo-600" />
-              Date Selection
-            </CardTitle>
-            <CardDescription>
-              Select a specific date to view 24-hour data. Only dates with
-              previous day data available can be selected.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === "full" ? "default" : "outline"}
-                  onClick={() => {
-                    setViewMode("full");
-                    setSelectedDate(undefined);
-                  }}
-                  className="text-sm"
-                >
-                  Full View
-                </Button>
-                <Button
-                  variant={viewMode === "daily" ? "default" : "outline"}
-                  onClick={() => setViewMode("daily")}
-                  className="text-sm"
-                >
-                  Daily View
-                </Button>
-              </div>
-
-              {viewMode === "daily" && (
-                <div className="flex items-center gap-2">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-[240px] justify-start text-left font-normal",
-                          !selectedDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? (
-                          selectedDate.toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={(date) => {
-                          if (date && isDateSelectable(date)) {
-                            setSelectedDate(date);
-                          }
-                        }}
-                        disabled={(date) => !isDateSelectable(date)}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  {selectedDate && (
-                    <Badge variant="secondary" className="text-sm">
-                      Showing 24 hours of data
-                    </Badge>
-                  )}
-                </div>
-              )}
-
-              {viewMode === "daily" && !selectedDate && (
-                <p className="text-sm text-muted-foreground">
-                  Please select a date. Only dates with previous day data can be
-                  selected.
-                </p>
-              )}
-            </div>
-
-            {availableDates.length > 0 && (
-              <div className="mt-4 p-3 bg-white/50 dark:bg-slate-900/50 rounded-lg border">
-                <p className="text-sm text-muted-foreground mb-2">
-                  <strong>Available date range:</strong> {availableDates[0]} to{" "}
-                  {availableDates[availableDates.length - 1]}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Total days with data: {availableDates.length}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -971,6 +854,95 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
         </CardContent>
       </Card>
 
+      {/* Date Selection Card */}
+      {chartData.length > 0 && availableDates.length > 0 && (
+        <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-indigo-600" />
+              Date Selection
+            </CardTitle>
+            <CardDescription>
+              Select a specific date to view 24-hour data. Only dates with
+              previous day data available can be selected.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === "full" ? "default" : "outline"}
+                  onClick={() => {
+                    setViewMode("full");
+                    setSelectedDate(null);
+                  }}
+                  className="text-sm"
+                >
+                  Full View
+                </Button>
+                <Button
+                  variant={viewMode === "daily" ? "default" : "outline"}
+                  onClick={() => setViewMode("daily")}
+                  className="text-sm"
+                >
+                  Daily View (24h)
+                </Button>
+              </div>
+
+              {viewMode === "daily" && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Select
+                    value={selectedDate || ""}
+                    onValueChange={(val) => setSelectedDate(val)}
+                  >
+                    <SelectTrigger className="w-[200px] bg-white dark:bg-slate-900">
+                      <SelectValue placeholder="Select a date" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectableDates.map((date) => (
+                        <SelectItem key={date} value={date}>
+                          {new Date(date).toLocaleDateString("en-US", {
+                            weekday: "short",
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedDate && (
+                    <Badge
+                      variant="secondary"
+                      className="text-sm bg-indigo-100 dark:bg-indigo-900/50"
+                    >
+                      Showing 24 hours
+                    </Badge>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {viewMode === "daily" && !selectedDate && (
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                Please select a date to view its 24-hour data.
+              </p>
+            )}
+
+            <div className="p-3 bg-white/50 dark:bg-slate-900/50 rounded-lg border">
+              <p className="text-sm text-muted-foreground">
+                <strong>Available date range:</strong> {availableDates[0]} to{" "}
+                {availableDates[availableDates.length - 1]}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Total days with data: {availableDates.length} | Selectable days:{" "}
+                {selectableDates.length}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 gap-6">
         {/* Graph 1: Ozone (O3) */}
         <Card className="overflow-hidden">
@@ -981,8 +953,11 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   <Wind className="w-5 h-5 text-blue-500" />
                   Ozone (O3) Levels
                   {viewMode === "daily" && selectedDate && (
-                    <Badge variant="outline" className="ml-2 text-xs">
-                      {selectedDate.toLocaleDateString("en-US", {
+                    <Badge
+                      variant="outline"
+                      className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/50"
+                    >
+                      {new Date(selectedDate).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
@@ -992,10 +967,13 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                 </CardTitle>
                 <CardDescription className="mt-1">
                   {viewMode === "daily" && selectedDate
-                    ? `24-hour data for ${selectedDate.toLocaleDateString(
-                        "en-US",
-                        { weekday: "long", month: "long", day: "numeric" }
-                      )}`
+                    ? `24-hour data for ${new Date(
+                        selectedDate
+                      ).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })}`
                     : o3ViewMode === "actual-forecast"
                     ? "Actual vs Forecast comparison"
                     : "Historical vs Forecast comparison"}{" "}
@@ -1128,13 +1106,13 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                     className="stroke-muted/30"
                   />
                   <XAxis
-                    dataKey={viewMode === "daily" ? "date" : "rawTimestamp"}
-                    tickFormatter={(val) => {
-                      if (viewMode === "daily" && typeof val === "string") {
-                        const timePart = val.split(" ")[1];
-                        if (timePart) {
-                          return timePart.substring(0, 5);
-                        }
+                    dataKey={
+                      viewMode === "daily" ? "hourOfDay" : "rawTimestamp"
+                    }
+                    tickFormatter={(val, index) => {
+                      if (viewMode === "daily") {
+                        const dataPoint = combinedData[index];
+                        return dataPoint?.displayHour || `${val}:00`;
                       }
                       return `${val}h`;
                     }}
@@ -1159,12 +1137,13 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       boxShadow: "0 4px 12px -1px rgb(0 0 0 / 0.15)",
                       padding: "12px",
                     }}
-                    labelFormatter={(val) => {
-                      if (viewMode === "daily" && typeof val === "string") {
-                        const timePart = val.split(" ")[1];
-                        if (timePart) {
-                          return `Time: ${timePart.substring(0, 5)}`;
-                        }
+                    labelFormatter={(val, payload) => {
+                      if (
+                        viewMode === "daily" &&
+                        payload &&
+                        payload[0]?.payload?.displayHour
+                      ) {
+                        return `Time: ${payload[0].payload.displayHour}`;
                       }
                       return `Hour ${val}`;
                     }}
@@ -1244,8 +1223,11 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   <Activity className="w-5 h-5 text-purple-500" />
                   Nitrogen Dioxide (NO2) Levels
                   {viewMode === "daily" && selectedDate && (
-                    <Badge variant="outline" className="ml-2 text-xs">
-                      {selectedDate.toLocaleDateString("en-US", {
+                    <Badge
+                      variant="outline"
+                      className="ml-2 text-xs bg-purple-100 dark:bg-purple-900/50"
+                    >
+                      {new Date(selectedDate).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                         year: "numeric",
@@ -1255,10 +1237,13 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                 </CardTitle>
                 <CardDescription className="mt-1">
                   {viewMode === "daily" && selectedDate
-                    ? `24-hour data for ${selectedDate.toLocaleDateString(
-                        "en-US",
-                        { weekday: "long", month: "long", day: "numeric" }
-                      )}`
+                    ? `24-hour data for ${new Date(
+                        selectedDate
+                      ).toLocaleDateString("en-US", {
+                        weekday: "long",
+                        month: "long",
+                        day: "numeric",
+                      })}`
                     : no2ViewMode === "actual-forecast"
                     ? "Actual vs Forecast comparison"
                     : "Historical vs Forecast comparison"}{" "}
@@ -1391,13 +1376,13 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                     className="stroke-muted/30"
                   />
                   <XAxis
-                    dataKey={viewMode === "daily" ? "date" : "rawTimestamp"}
-                    tickFormatter={(val) => {
-                      if (viewMode === "daily" && typeof val === "string") {
-                        const timePart = val.split(" ")[1];
-                        if (timePart) {
-                          return timePart.substring(0, 5);
-                        }
+                    dataKey={
+                      viewMode === "daily" ? "hourOfDay" : "rawTimestamp"
+                    }
+                    tickFormatter={(val, index) => {
+                      if (viewMode === "daily") {
+                        const dataPoint = combinedData[index];
+                        return dataPoint?.displayHour || `${val}:00`;
                       }
                       return `${val}h`;
                     }}
@@ -1422,12 +1407,13 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       boxShadow: "0 4px 12px -1px rgb(0 0 0 / 0.15)",
                       padding: "12px",
                     }}
-                    labelFormatter={(val) => {
-                      if (viewMode === "daily" && typeof val === "string") {
-                        const timePart = val.split(" ")[1];
-                        if (timePart) {
-                          return `Time: ${timePart.substring(0, 5)}`;
-                        }
+                    labelFormatter={(val, payload) => {
+                      if (
+                        viewMode === "daily" &&
+                        payload &&
+                        payload[0]?.payload?.displayHour
+                      ) {
+                        return `Time: ${payload[0].payload.displayHour}`;
                       }
                       return `Hour ${val}`;
                     }}

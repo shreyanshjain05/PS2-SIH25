@@ -52,10 +52,15 @@ export default function GovDashboardClient({
   const [alertedRegions, setAlertedRegions] = useState<Set<string>>(new Set());
 
   const handleForecastUpdate = (data: AqiData, siteId: string) => {
+    // Handle both new format (forecast.O3_target) and legacy format (forecast_O3_target)
+    const forecastO3 = data.forecast?.O3_target || data.forecast_O3_target || [];
+    const forecastNO2 = data.forecast?.NO2_target || data.forecast_NO2_target || [];
+    const forecastTimestamps = data.dates || data.forecast_timestamps || [];
+    
     // Analyze forecast data for critical levels
     const forecastLength = Math.min(
-      data.forecast_O3_target.length,
-      data.forecast_NO2_target.length
+      forecastO3.length,
+      forecastNO2.length
     );
 
     let maxSeverity = 0;
@@ -64,8 +69,12 @@ export default function GovDashboardClient({
 
     // Check the next 48 hours (or available forecast)
     for (let i = 0; i < forecastLength; i++) {
-      const o3 = data.forecast_O3_target[i];
-      const no2 = data.forecast_NO2_target[i];
+      const o3 = forecastO3[i];
+      const no2 = forecastNO2[i];
+      
+      // Skip null values (historical period in new format)
+      if (o3 === null || o3 === undefined || no2 === null || no2 === undefined) continue;
+      
       const score = calculatePollutionScore(o3, no2);
 
       if (score.score > maxSeverity) {
@@ -73,21 +82,28 @@ export default function GovDashboardClient({
         worstCase = {
           o3,
           no2,
-          timestamp: data.forecast_timestamps[i],
+          timestamp: forecastTimestamps[i],
           ...score,
         };
       }
     }
 
     // Determine trend based on first vs last forecast point
-    if (forecastLength > 0) {
+    // Find first and last non-null values
+    const validIndices = forecastO3
+      .map((val, idx) => (val !== null && val !== undefined ? idx : -1))
+      .filter(idx => idx !== -1);
+    
+    if (validIndices.length > 1) {
+      const firstIdx = validIndices[0];
+      const lastIdx = validIndices[validIndices.length - 1];
       const firstScore = calculatePollutionScore(
-        data.forecast_O3_target[0],
-        data.forecast_NO2_target[0]
+        forecastO3[firstIdx] as number,
+        forecastNO2[firstIdx] as number
       ).score;
       const lastScore = calculatePollutionScore(
-        data.forecast_O3_target[forecastLength - 1],
-        data.forecast_NO2_target[forecastLength - 1]
+        forecastO3[lastIdx] as number,
+        forecastNO2[lastIdx] as number
       ).score;
 
       if (lastScore > firstScore) trend = "Rising";

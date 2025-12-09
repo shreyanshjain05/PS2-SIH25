@@ -500,9 +500,50 @@ async def websocket_predict(websocket: WebSocket):
             # Run full pipeline to ensure lags are handled correctly
             res = await run_forecast_pipeline(df, input_data.get("site_id", "1"))
             
-            # Send response with actual, predicted, forecast, and metrics
+            # Determine historical vs forecast split based on actual data availability
+            # Historical = where we have actual ground truth, Forecast = predictions for future
+            dates = res.get("dates", [])
+            actual_o3 = res.get("actual", {}).get("O3_target", [])
+            actual_no2 = res.get("actual", {}).get("NO2_target", [])
+            forecast_o3 = res.get("forecast", {}).get("O3_target", [])
+            forecast_no2 = res.get("forecast", {}).get("NO2_target", [])
+            
+            # Build historical data (where actual values exist)
+            historical = {
+                "dates": [],
+                "O3_target": [],
+                "NO2_target": []
+            }
+            
+            # Build forecast data (predictions)
+            forecast = {
+                "dates": [],
+                "O3_target": [],
+                "NO2_target": []
+            }
+            
+            for i, date in enumerate(dates):
+                o3_actual = actual_o3[i] if i < len(actual_o3) else None
+                no2_actual = actual_no2[i] if i < len(actual_no2) else None
+                o3_forecast = forecast_o3[i] if i < len(forecast_o3) else None
+                no2_forecast = forecast_no2[i] if i < len(forecast_no2) else None
+                
+                # If actual values exist and are not None, it's historical
+                if o3_actual is not None or no2_actual is not None:
+                    historical["dates"].append(date)
+                    historical["O3_target"].append(o3_actual)
+                    historical["NO2_target"].append(no2_actual)
+                
+                # If forecast values exist, include in forecast
+                if o3_forecast is not None or no2_forecast is not None:
+                    forecast["dates"].append(date)
+                    forecast["O3_target"].append(o3_forecast)
+                    forecast["NO2_target"].append(no2_forecast)
+            
+            # Send response with historical, actual, predicted, forecast, and metrics
             ws_response = {
                 "dates": res.get("dates", []),
+                "historical": historical,
                 "actual": res.get("actual", {}),
                 "predicted": res.get("predicted", {}),
                 "forecast": res.get("forecast", {}),

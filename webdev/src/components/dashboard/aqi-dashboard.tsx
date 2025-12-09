@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Wind,
   Activity,
+  BarChart3,
 } from "lucide-react";
 import {
   Card,
@@ -43,13 +44,39 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { getSiteName } from "@/lib/sites";
 
+// New API response format matching ML service
 export interface AqiData {
-  historical_timestamps: number[];
-  forecast_timestamps: number[];
-  historical_O3_target: number[];
-  historical_NO2_target: number[];
-  forecast_O3_target: number[];
-  forecast_NO2_target: number[];
+  // New format fields
+  dates?: string[];
+  // Historical data (past observations before forecast period)
+  historical?: {
+    dates: string[];
+    O3_target: (number | null)[];
+    NO2_target: (number | null)[];
+  };
+  actual?: {
+    O3_target: (number | null)[];
+    NO2_target: (number | null)[];
+  };
+  predicted?: {
+    O3_target: (number | null)[];
+    NO2_target: (number | null)[];
+  };
+  forecast?: {
+    O3_target: (number | null)[];
+    NO2_target: (number | null)[];
+  };
+  metrics?: {
+    O3: { mae: number; rmse: number; r2: number };
+    NO2: { mae: number; rmse: number; r2: number };
+  };
+  // Legacy format fields for backward compatibility
+  historical_timestamps?: number[];
+  forecast_timestamps?: number[];
+  historical_O3_target?: number[];
+  historical_NO2_target?: number[];
+  forecast_O3_target?: number[];
+  forecast_NO2_target?: number[];
   metadata?: {
     row_count: number;
   };
@@ -70,9 +97,14 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
   const [selectedSite, setSelectedSite] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
-  const [forecastLimit, setForecastLimit] = useState(48);
-  const [maxForecastHours, setMaxForecastHours] = useState(48);
+  const [metrics, setMetrics] = useState<AqiData["metrics"] | null>(null);
+  const [forecastLimit, setForecastLimit] = useState(72);
+  const [maxForecastHours, setMaxForecastHours] = useState(72);
   const [hoveredData, setHoveredData] = useState<any>(null);
+  
+  // Chart view mode: "actual-forecast" or "historical-forecast"
+  const [o3ViewMode, setO3ViewMode] = useState<"actual-forecast" | "historical-forecast">("historical-forecast");
+  const [no2ViewMode, setNo2ViewMode] = useState<"actual-forecast" | "historical-forecast">("historical-forecast");
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -128,14 +160,83 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
         }
 
         console.log("Received response:", response);
+        console.log("Historical data from API:", response.historical);
 
+        // Store metrics if available
+        if (response.metrics) {
+          setMetrics(response.metrics);
+        }
+
+        // New format: dates, historical, actual, predicted, forecast
         const mergedData: any[] = [];
 
-        // Handle historical data
-        if (
-          response.historical_timestamps &&
-          Array.isArray(response.historical_timestamps)
-        ) {
+        if (response.dates && Array.isArray(response.dates)) {
+          const dataLength = response.dates.length;
+          setMaxForecastHours(dataLength);
+
+          // Build a map of historical data by index for quick lookup
+          const historicalDatesSet = new Set(response.historical?.dates || []);
+          
+          for (let i = 0; i < dataLength; i++) {
+            const currentDate = response.dates[i];
+            const actual_o3 = response.actual?.O3_target?.[i];
+            const actual_no2 = response.actual?.NO2_target?.[i];
+            const predicted_o3 = response.predicted?.O3_target?.[i];
+            const predicted_no2 = response.predicted?.NO2_target?.[i];
+            const forecast_o3 = response.forecast?.O3_target?.[i];
+            const forecast_no2 = response.forecast?.NO2_target?.[i];
+
+            // Check if this is a forecast point (forecast value exists and is not null)
+            const isForecast = forecast_o3 !== null && forecast_o3 !== undefined;
+            
+            // Check if this date is in historical data
+            const isHistorical = historicalDatesSet.has(currentDate) || !isForecast;
+
+            // Get historical values from the dedicated historical object
+            let historical_o3 = null;
+            let historical_no2 = null;
+            
+            if (response.historical && response.historical.dates) {
+              const histIndex = response.historical.dates.indexOf(currentDate);
+              if (histIndex !== -1) {
+                historical_o3 = response.historical.O3_target?.[histIndex];
+                historical_no2 = response.historical.NO2_target?.[histIndex];
+              }
+            }
+            
+            // Fallback: use actual values for historical period if historical object not available
+            if (historical_o3 === null && !isForecast) {
+              historical_o3 = actual_o3;
+            }
+            if (historical_no2 === null && !isForecast) {
+              historical_no2 = actual_no2;
+            }
+
+            mergedData.push({
+              timestamp: `${i}h`,
+              rawTimestamp: i,
+              date: currentDate,
+              type: isForecast ? "Forecast" : "Historical",
+              // Historical values - past observations before forecast period
+              O3: historical_o3,
+              NO2: historical_no2,
+              // Actual values - ground truth for ALL periods (for actual vs forecast comparison)
+              O3_Actual: actual_o3,
+              NO2_Actual: actual_no2,
+              // Forecast values (model predictions - only in forecast period)
+              O3_Forecast: forecast_o3,
+              NO2_Forecast: forecast_no2,
+              isForecast,
+            });
+          }
+          
+          console.log("Merged data with historical:", {
+            total: mergedData.length,
+            withHistoricalO3: mergedData.filter(d => d.O3 !== null).length,
+            withForecastO3: mergedData.filter(d => d.O3_Forecast !== null).length,
+          });
+        } else if (response.historical_timestamps && Array.isArray(response.historical_timestamps)) {
+          // Fallback to legacy format
           const histLength = Math.min(
             response.historical_timestamps.length,
             response.historical_O3_target?.length || 0,
@@ -144,51 +245,36 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
 
           for (let i = 0; i < histLength; i++) {
             const ts = response.historical_timestamps[i];
-
             mergedData.push({
-              timestamp: `Hour ${i}`,
-              rawTimestamp: i, // Use index for X-axis (0h, 1h, 2h...)
-              originalTimestamp: ts, // Keep original for tooltip
+              timestamp: `${ts}h`,
+              rawTimestamp: ts,
               type: "Historical",
-              O3: response.historical_O3_target[i],
-              NO2: response.historical_NO2_target[i],
-              O3_Forecast: response.historical_O3_target[i],
-              NO2_Forecast: response.historical_NO2_target[i],
+              O3: response.historical_O3_target?.[i],
+              NO2: response.historical_NO2_target?.[i],
               isForecast: false,
             });
           }
-        }
 
-        // Handle forecast data
-        if (
-          response.forecast_timestamps &&
-          Array.isArray(response.forecast_timestamps)
-        ) {
-          const forecastLength = Math.min(
-            response.forecast_timestamps.length,
-            response.forecast_O3_target?.length || 0,
-            response.forecast_NO2_target?.length || 0
-          );
+          if (response.forecast_timestamps && Array.isArray(response.forecast_timestamps)) {
+            const forecastLength = Math.min(
+              response.forecast_timestamps.length,
+              response.forecast_O3_target?.length || 0,
+              response.forecast_NO2_target?.length || 0
+            );
 
-          // Set max forecast hours
-          setMaxForecastHours(forecastLength);
+            setMaxForecastHours(forecastLength);
 
-          // Get the last historical hour index to continue from
-          const startHour = mergedData.length;
-          
-          for (let i = 0; i < forecastLength; i++) {
-            const ts = response.forecast_timestamps[i];
-            const hourIndex = startHour + i;
-
-            mergedData.push({
-              timestamp: `Hour ${hourIndex}`,
-              rawTimestamp: hourIndex, // Use index for X-axis (72h, 73h, 74h...)
-              originalTimestamp: ts, // Keep original for tooltip
-              type: "Forecast",
-              O3_Forecast: response.forecast_O3_target[i],
-              NO2_Forecast: response.forecast_NO2_target[i],
-              isForecast: true,
-            });
+            for (let i = 0; i < forecastLength; i++) {
+              const ts = response.forecast_timestamps[i];
+              mergedData.push({
+                timestamp: `${ts}h`,
+                rawTimestamp: ts,
+                type: "Forecast",
+                O3_Forecast: response.forecast_O3_target?.[i],
+                NO2_Forecast: response.forecast_NO2_target?.[i],
+                isForecast: true,
+              });
+            }
           }
         }
 
@@ -208,41 +294,75 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
 
     // Simulate network delay
     setTimeout(() => {
-      // Generate 72 historical points
-      const historical_timestamps = Array.from({ length: 72 }, (_, i) => i);
-      const historical_O3_target = Array.from(
-        { length: 72 },
-        () => 40 + Math.random() * 20
-      );
-      const historical_NO2_target = Array.from(
-        { length: 72 },
-        () => 20 + Math.random() * 15
-      );
+      // Generate 120 dates (72 historical + 48 forecast)
+      const totalPoints = 120;
+      const historicalPoints = 72;
+      const forecastPoints = 48;
 
-      // Generate 48 forecast points with some "Moderate" values
-      const forecast_timestamps = Array.from({ length: 48 }, (_, i) => 72 + i);
-
-      // Create a spike in pollution for testing alerts
-      const forecast_O3_target = Array.from({ length: 48 }, (_, i) => {
-        // Spike around hour 10-15 of forecast
-        if (i > 10 && i < 15) return 110 + Math.random() * 10; // Moderate O3 (>100)
-        return 50 + Math.random() * 20;
+      // Generate dates
+      const dates = Array.from({ length: totalPoints }, (_, i) => {
+        const date = new Date();
+        date.setHours(date.getHours() + i - historicalPoints);
+        return date.toISOString().slice(0, 16).replace('T', ' ');
       });
 
-      const forecast_NO2_target = Array.from({ length: 48 }, (_, i) => {
-        // Spike around hour 20-25
-        if (i > 20 && i < 25) return 50 + Math.random() * 10; // Moderate NO2 (>40)
+      // Generate actual values for ALL points (historical + actual ground truth for forecast period)
+      // In real scenario, actual values in forecast period would be real measurements
+      const actual_O3 = Array.from({ length: totalPoints }, (_, i) => {
+        if (i < historicalPoints) {
+          // Historical actual values
+          return 40 + Math.random() * 20;
+        } else {
+          // Actual ground truth in forecast period (for comparison)
+          const forecastIdx = i - historicalPoints;
+          if (forecastIdx > 10 && forecastIdx < 15) return 105 + Math.random() * 15; // Actual spike
+          return 48 + Math.random() * 18;
+        }
+      });
+      const actual_NO2 = Array.from({ length: totalPoints }, (_, i) => {
+        if (i < historicalPoints) {
+          return 20 + Math.random() * 15;
+        } else {
+          const forecastIdx = i - historicalPoints;
+          if (forecastIdx > 20 && forecastIdx < 25) return 45 + Math.random() * 12;
+          return 23 + Math.random() * 12;
+        }
+      });
+
+      // Generate forecast values (only for forecast period with spikes)
+      const forecast_O3 = Array.from({ length: totalPoints }, (_, i) => {
+        if (i < historicalPoints) return null;
+        const forecastIdx = i - historicalPoints;
+        if (forecastIdx > 10 && forecastIdx < 15) return 110 + Math.random() * 10; // Forecasted spike
+        return 50 + Math.random() * 20;
+      });
+      const forecast_NO2 = Array.from({ length: totalPoints }, (_, i) => {
+        if (i < historicalPoints) return null;
+        const forecastIdx = i - historicalPoints;
+        if (forecastIdx > 20 && forecastIdx < 25) return 50 + Math.random() * 10;
         return 25 + Math.random() * 10;
       });
 
+      // Generate historical data object (only for historical period)
+      const historical = {
+        dates: dates.slice(0, historicalPoints),
+        O3_target: actual_O3.slice(0, historicalPoints) as (number | null)[],
+        NO2_target: actual_NO2.slice(0, historicalPoints) as (number | null)[]
+      };
+
+      // Simulated metrics
+      const simulatedMetrics = {
+        O3: { mae: 4.783, rmse: 7.099, r2: 0.9225 },
+        NO2: { mae: 4.087, rmse: 5.338, r2: 0.9369 }
+      };
+
       const response: AqiData = {
-        historical_timestamps,
-        forecast_timestamps,
-        historical_O3_target,
-        historical_NO2_target,
-        forecast_O3_target,
-        forecast_NO2_target,
-        metadata: { row_count: 120 },
+        dates,
+        historical,
+        actual: { O3_target: actual_O3 as (number | null)[], NO2_target: actual_NO2 as (number | null)[] },
+        forecast: { O3_target: forecast_O3 as (number | null)[], NO2_target: forecast_NO2 as (number | null)[] },
+        metrics: simulatedMetrics,
+        metadata: { row_count: totalPoints },
         errors: {
           O3_absolute_error: [],
           NO2_absolute_error: [],
@@ -253,63 +373,60 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
         onForecastUpdate(response, selectedSite);
       }
 
+      // Save metrics
+      setMetrics(response.metrics || null);
+
       const mergedData: any[] = [];
+      
+      // Build historical dates set for lookup
+      const historicalDatesSet = new Set(historical.dates);
 
-      // Handle historical data
-      if (
-        response.historical_timestamps &&
-        Array.isArray(response.historical_timestamps)
-      ) {
-        const histLength = Math.min(
-          response.historical_timestamps.length,
-          response.historical_O3_target?.length || 0,
-          response.historical_NO2_target?.length || 0
-        );
+      // Merge all data points
+      for (let i = 0; i < dates.length; i++) {
+        const currentDate = dates[i];
+        const actual_o3 = response.actual?.O3_target?.[i];
+        const actual_no2 = response.actual?.NO2_target?.[i];
+        const forecast_o3 = response.forecast?.O3_target?.[i];
+        const forecast_no2 = response.forecast?.NO2_target?.[i];
 
-        for (let i = 0; i < histLength; i++) {
-          const ts = response.historical_timestamps[i];
-
-          mergedData.push({
-            timestamp: `Hour ${ts}`,
-            rawTimestamp: ts,
-            type: "Historical",
-            O3: response.historical_O3_target[i],
-            NO2: response.historical_NO2_target[i],
-            O3_Forecast: response.historical_O3_target[i],
-            NO2_Forecast: response.historical_NO2_target[i],
-            isForecast: false,
-          });
+        const isForecast = forecast_o3 !== null && forecast_o3 !== undefined;
+        
+        // Get historical values
+        let hist_o3 = null;
+        let hist_no2 = null;
+        
+        const histIndex = historical.dates.indexOf(currentDate);
+        if (histIndex !== -1) {
+          hist_o3 = historical.O3_target[histIndex];
+          hist_no2 = historical.NO2_target[histIndex];
         }
+
+        mergedData.push({
+          timestamp: `${i}h`,
+          rawTimestamp: i,
+          date: currentDate,
+          type: isForecast ? "Forecast" : "Historical",
+          // Historical values - from the historical object
+          O3: hist_o3,
+          NO2: hist_no2,
+          // Actual values - ground truth for ALL periods (for actual vs forecast comparison)
+          O3_Actual: actual_o3,
+          NO2_Actual: actual_no2,
+          // Forecast values (model predictions for future)
+          O3_Forecast: forecast_o3,
+          NO2_Forecast: forecast_no2,
+          isForecast,
+        });
       }
+      
+      console.log("Simulated data with historical:", {
+        total: mergedData.length,
+        withHistoricalO3: mergedData.filter(d => d.O3 !== null).length,
+        withForecastO3: mergedData.filter(d => d.O3_Forecast !== null).length,
+      });
 
-      // Handle forecast data
-      if (
-        response.forecast_timestamps &&
-        Array.isArray(response.forecast_timestamps)
-      ) {
-        const forecastLength = Math.min(
-          response.forecast_timestamps.length,
-          response.forecast_O3_target?.length || 0,
-          response.forecast_NO2_target?.length || 0
-        );
-
-        // Set max forecast hours
-        setMaxForecastHours(forecastLength);
-
-        for (let i = 0; i < forecastLength; i++) {
-          const ts = response.forecast_timestamps[i];
-
-          mergedData.push({
-            timestamp: `Hour ${ts}`,
-            rawTimestamp: ts,
-            type: "Forecast",
-            O3_Forecast: response.forecast_O3_target[i],
-            NO2_Forecast: response.forecast_NO2_target[i],
-            isForecast: true,
-          });
-        }
-      }
-
+      // Set max forecast hours
+      setMaxForecastHours(forecastPoints);
       setChartData(mergedData);
       setLoading(false);
     }, 1000);
@@ -326,9 +443,27 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
   }, [chartData, forecastLimit]);
 
   const combinedData = useMemo(() => {
-    // Combine last few historical points with forecast for smooth transition
-    const lastHistorical = historicalData.slice(-24);
-    return [...lastHistorical, ...forecastData];
+    // Show ALL historical data plus forecast data for complete view
+    // This allows viewing actual vs predicted on historical data, plus forecasts
+    const combined = [...historicalData, ...forecastData];
+    
+    // Debug logging
+    if (combined.length > 0) {
+      const historicalO3Values = combined.filter(d => d.O3 !== null && d.O3 !== undefined);
+      const forecastO3Values = combined.filter(d => d.O3_Forecast !== null && d.O3_Forecast !== undefined);
+      
+      console.log("Chart Data Debug:", {
+        totalPoints: combined.length,
+        historicalCount: historicalData.length,
+        forecastCount: forecastData.length,
+        historicalO3Count: historicalO3Values.length,
+        forecastO3Count: forecastO3Values.length,
+        sampleHistorical: historicalO3Values.slice(0, 2),
+        sampleForecast: forecastO3Values.slice(0, 2),
+      });
+    }
+    
+    return combined;
   }, [historicalData, forecastData]);
 
   const stats = useMemo(() => {
@@ -336,10 +471,10 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
 
     const o3Values = forecastData
       .map((d) => d.O3_Forecast)
-      .filter((v) => v !== undefined);
+      .filter((v) => v !== undefined && v !== null) as number[];
     const no2Values = forecastData
       .map((d) => d.NO2_Forecast)
-      .filter((v) => v !== undefined);
+      .filter((v) => v !== undefined && v !== null) as number[];
 
     return {
       o3: {
@@ -488,6 +623,75 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
         </div>
       )}
 
+      {/* Model Performance Metrics */}
+      {metrics && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
+            <BarChart3 className="w-5 h-5" />
+            Model Performance Metrics
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* O3 Metrics */}
+            <Card className="border-blue-200 dark:border-blue-900 bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-950/20 dark:to-cyan-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                  <Wind className="w-4 h-4" />
+                  O3 Model Accuracy
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">MAE</p>
+                    <p className="text-2xl font-bold text-blue-600">{metrics.O3.mae.toFixed(3)}</p>
+                    <p className="text-xs text-muted-foreground">µg/m³</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">RMSE</p>
+                    <p className="text-2xl font-bold text-blue-600">{metrics.O3.rmse.toFixed(3)}</p>
+                    <p className="text-xs text-muted-foreground">µg/m³</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">R²</p>
+                    <p className="text-2xl font-bold text-blue-600">{(metrics.O3.r2 * 100).toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground">Accuracy</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* NO2 Metrics */}
+            <Card className="border-purple-200 dark:border-purple-900 bg-gradient-to-br from-purple-50/50 to-pink-50/50 dark:from-purple-950/20 dark:to-pink-950/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-medium text-purple-700 dark:text-purple-400 flex items-center gap-2">
+                  <Activity className="w-4 h-4" />
+                  NO2 Model Accuracy
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">MAE</p>
+                    <p className="text-2xl font-bold text-purple-600">{metrics.NO2.mae.toFixed(3)}</p>
+                    <p className="text-xs text-muted-foreground">µg/m³</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">RMSE</p>
+                    <p className="text-2xl font-bold text-purple-600">{metrics.NO2.rmse.toFixed(3)}</p>
+                    <p className="text-xs text-muted-foreground">µg/m³</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">R²</p>
+                    <p className="text-2xl font-bold text-purple-600">{(metrics.NO2.r2 * 100).toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground">Accuracy</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
       <Card className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -534,30 +738,47 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   Ozone (O3) Levels
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Historical data and AI predictions (µg/m³)
+                  {o3ViewMode === "actual-forecast" ? "Actual vs Forecast comparison" : "Historical vs Forecast comparison"} (µg/m³)
                 </CardDescription>
               </div>
-              {stats && (
-                <div className="flex gap-4">
-                  <Badge
-                    variant="secondary"
-                    className="bg-blue-100 dark:bg-blue-900/50"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-blue-600 mr-2" />
-                    Historical
-                  </Badge>
-                  <Badge
-                    variant="secondary"
-                    className="bg-cyan-100 dark:bg-cyan-900/50"
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full bg-cyan-600 mr-2"
-                      style={{ borderStyle: "dashed" }}
-                    />
-                    Forecast
-                  </Badge>
-                </div>
-              )}
+              <div className="flex items-center gap-4">
+                <Select value={o3ViewMode} onValueChange={(val: "actual-forecast" | "historical-forecast") => setO3ViewMode(val)}>
+                  <SelectTrigger className="w-[200px] bg-white dark:bg-slate-900">
+                    <SelectValue placeholder="Select view" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="historical-forecast">Historical vs Forecast</SelectItem>
+                    <SelectItem value="actual-forecast">Actual vs Forecast</SelectItem>
+                  </SelectContent>
+                </Select>
+                {stats && (
+                  <div className="flex gap-2">
+                    {o3ViewMode === "historical-forecast" ? (
+                      <>
+                        <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900/50">
+                          <span className="w-2 h-2 rounded-full bg-blue-600 mr-2" />
+                          Historical
+                        </Badge>
+                        <Badge variant="secondary" className="bg-cyan-100 dark:bg-cyan-900/50">
+                          <span className="w-2 h-2 rounded-full bg-cyan-600 mr-2" />
+                          Forecast
+                        </Badge>
+                      </>
+                    ) : (
+                      <>
+                        <Badge variant="secondary" className="bg-green-100 dark:bg-green-900/50">
+                          <span className="w-2 h-2 rounded-full bg-green-500 mr-2" />
+                          Actual
+                        </Badge>
+                        <Badge variant="secondary" className="bg-cyan-100 dark:bg-cyan-900/50">
+                          <span className="w-2 h-2 rounded-full bg-cyan-600 mr-2" />
+                          Forecast
+                        </Badge>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
@@ -577,9 +798,13 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient id="colorO3" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <linearGradient id="colorO3Historical" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.5} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
+                    </linearGradient>
+                    <linearGradient id="colorO3Actual" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0.05} />
                     </linearGradient>
                     <linearGradient
                       id="colorO3Forecast"
@@ -588,8 +813,8 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       x2="0"
                       y2="1"
                     >
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.05} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -614,12 +839,17 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      borderColor: "hsl(var(--border))",
+                      backgroundColor: "rgba(255, 255, 255, 0.98)",
+                      borderColor: "#e2e8f0",
                       borderRadius: "8px",
-                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                      boxShadow: "0 4px 12px -1px rgb(0 0 0 / 0.15)",
+                      padding: "12px",
                     }}
                     labelFormatter={(val) => `Hour ${val}`}
+                    formatter={(value: any, name: string) => {
+                      if (value === null || value === undefined) return ['-', name];
+                      return [`${Number(value).toFixed(2)} µg/m³`, name];
+                    }}
                     cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 2 }}
                   />
                   <Legend wrapperStyle={{ paddingTop: "20px" }} />
@@ -638,16 +868,33 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       }}
                     />
                   )}
-                  <Area
-                    type="monotone"
-                    dataKey="O3"
-                    stroke="#3b82f6"
-                    fill="url(#colorO3)"
-                    name="Historical O3"
-                    strokeWidth={2.5}
-                    dot={false}
-                    connectNulls
-                  />
+                  {/* Historical O3 - shown in historical-forecast mode */}
+                  {o3ViewMode === "historical-forecast" && (
+                    <Area
+                      type="monotone"
+                      dataKey="O3"
+                      stroke="#3b82f6"
+                      fill="url(#colorO3Historical)"
+                      name="Historical O3"
+                      strokeWidth={3}
+                      dot={false}
+                      connectNulls={false}
+                    />
+                  )}
+                  {/* Actual O3 - shown in actual-forecast mode */}
+                  {o3ViewMode === "actual-forecast" && (
+                    <Area
+                      type="monotone"
+                      dataKey="O3_Actual"
+                      stroke="#22c55e"
+                      fill="url(#colorO3Actual)"
+                      name="Actual O3"
+                      strokeWidth={2.5}
+                      dot={false}
+                      connectNulls={false}
+                    />
+                  )}
+                  {/* Forecast O3 - always shown */}
                   <Area
                     type="monotone"
                     dataKey="O3_Forecast"
@@ -657,7 +904,7 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                     strokeWidth={2.5}
                     strokeDasharray="5 5"
                     dot={false}
-                    connectNulls
+                    connectNulls={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -675,30 +922,47 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   Nitrogen Dioxide (NO2) Levels
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  Historical data and AI predictions (µg/m³)
+                  {no2ViewMode === "actual-forecast" ? "Actual vs Forecast comparison" : "Historical vs Forecast comparison"} (µg/m³)
                 </CardDescription>
               </div>
-              {stats && (
-                <div className="flex gap-4">
-                  <Badge
-                    variant="secondary"
-                    className="bg-purple-100 dark:bg-purple-900/50"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-purple-600 mr-2" />
-                    Historical
-                  </Badge>
-                  <Badge
-                    variant="secondary"
-                    className="bg-pink-100 dark:bg-pink-900/50"
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full bg-pink-600 mr-2"
-                      style={{ borderStyle: "dashed" }}
-                    />
-                    Forecast
-                  </Badge>
-                </div>
-              )}
+              <div className="flex items-center gap-4">
+                <Select value={no2ViewMode} onValueChange={(val: "actual-forecast" | "historical-forecast") => setNo2ViewMode(val)}>
+                  <SelectTrigger className="w-[200px] bg-white dark:bg-slate-900">
+                    <SelectValue placeholder="Select view" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="historical-forecast">Historical vs Forecast</SelectItem>
+                    <SelectItem value="actual-forecast">Actual vs Forecast</SelectItem>
+                  </SelectContent>
+                </Select>
+                {stats && (
+                  <div className="flex gap-2">
+                    {no2ViewMode === "historical-forecast" ? (
+                      <>
+                        <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-900/50">
+                          <span className="w-2 h-2 rounded-full bg-purple-600 mr-2" />
+                          Historical
+                        </Badge>
+                        <Badge variant="secondary" className="bg-pink-100 dark:bg-pink-900/50">
+                          <span className="w-2 h-2 rounded-full bg-pink-600 mr-2" />
+                          Forecast
+                        </Badge>
+                      </>
+                    ) : (
+                      <>
+                        <Badge variant="secondary" className="bg-orange-100 dark:bg-orange-900/50">
+                          <span className="w-2 h-2 rounded-full bg-orange-500 mr-2" />
+                          Actual
+                        </Badge>
+                        <Badge variant="secondary" className="bg-pink-100 dark:bg-pink-900/50">
+                          <span className="w-2 h-2 rounded-full bg-pink-600 mr-2" />
+                          Forecast
+                        </Badge>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
@@ -718,9 +982,13 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient id="colorNO2" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                    <linearGradient id="colorNO2Historical" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.5} />
+                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0.1} />
+                    </linearGradient>
+                    <linearGradient id="colorNO2Actual" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#f97316" stopOpacity={0.05} />
                     </linearGradient>
                     <linearGradient
                       id="colorNO2Forecast"
@@ -729,8 +997,8 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       x2="0"
                       y2="1"
                     >
-                      <stop offset="5%" stopColor="#ec4899" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#ec4899" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#ec4899" stopOpacity={0.05} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -755,12 +1023,17 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "hsl(var(--popover))",
-                      borderColor: "hsl(var(--border))",
+                      backgroundColor: "rgba(255, 255, 255, 0.98)",
+                      borderColor: "#e2e8f0",
                       borderRadius: "8px",
-                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                      boxShadow: "0 4px 12px -1px rgb(0 0 0 / 0.15)",
+                      padding: "12px",
                     }}
                     labelFormatter={(val) => `Hour ${val}`}
+                    formatter={(value: any, name: string) => {
+                      if (value === null || value === undefined) return ['-', name];
+                      return [`${Number(value).toFixed(2)} µg/m³`, name];
+                    }}
                     cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 2 }}
                   />
                   <Legend wrapperStyle={{ paddingTop: "20px" }} />
@@ -779,16 +1052,33 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       }}
                     />
                   )}
-                  <Area
-                    type="monotone"
-                    dataKey="NO2"
-                    stroke="#a855f7"
-                    fill="url(#colorNO2)"
-                    name="Historical NO2"
-                    strokeWidth={2.5}
-                    dot={false}
-                    connectNulls
-                  />
+                  {/* Historical NO2 - shown in historical-forecast mode */}
+                  {no2ViewMode === "historical-forecast" && (
+                    <Area
+                      type="monotone"
+                      dataKey="NO2"
+                      stroke="#a855f7"
+                      fill="url(#colorNO2Historical)"
+                      name="Historical NO2"
+                      strokeWidth={3}
+                      dot={false}
+                      connectNulls={false}
+                    />
+                  )}
+                  {/* Actual NO2 - shown in actual-forecast mode */}
+                  {no2ViewMode === "actual-forecast" && (
+                    <Area
+                      type="monotone"
+                      dataKey="NO2_Actual"
+                      stroke="#f97316"
+                      fill="url(#colorNO2Actual)"
+                      name="Actual NO2"
+                      strokeWidth={2.5}
+                      dot={false}
+                      connectNulls={false}
+                    />
+                  )}
+                  {/* Forecast NO2 - always shown */}
                   <Area
                     type="monotone"
                     dataKey="NO2_Forecast"
@@ -798,7 +1088,7 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                     strokeWidth={2.5}
                     strokeDasharray="5 5"
                     dot={false}
-                    connectNulls
+                    connectNulls={false}
                   />
                 </AreaChart>
               </ResponsiveContainer>

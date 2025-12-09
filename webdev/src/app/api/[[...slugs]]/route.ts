@@ -111,34 +111,68 @@ const aqiService = new Elysia({ prefix: '/aqi' })
         
         const mlData = await res.json();
         
-        console.log('ML Service Response:', JSON.stringify(mlData, null, 2));
-        console.log('ML Data keys:', Object.keys(mlData));
+        console.log('ML Service Response keys:', Object.keys(mlData));
         console.log('Has dates?', 'dates' in mlData);
-        console.log('Has historical?', 'historical' in mlData);
+        console.log('Has actual?', 'actual' in mlData);
+        console.log('Has predicted?', 'predicted' in mlData);
         console.log('Has forecast?', 'forecast' in mlData);
+        console.log('Has metrics?', 'metrics' in mlData);
         
-        // Transform ML response (dates, historical, forecast) to Frontend expected format (AqiData)
+        // Pass through the new ML response format directly to frontend
+        // New format: dates, actual, predicted, forecast, metrics
         if (mlData && mlData.dates) {
-            const transformed = {
-                historical_timestamps: mlData.dates,
-                forecast_timestamps: mlData.dates,
-                historical_O3_target: mlData.historical?.O3_target || [],
-                historical_NO2_target: mlData.historical?.NO2_target || [],
-                forecast_O3_target: mlData.forecast?.O3_target || [],
-                forecast_NO2_target: mlData.forecast?.NO2_target || []
-            };
-            console.log('Transformed data sample:', {
-                historical_timestamps_length: transformed.historical_timestamps.length,
-                forecast_timestamps_length: transformed.forecast_timestamps.length,
-                historical_O3_length: transformed.historical_O3_target.length,
-                historical_NO2_length: transformed.historical_NO2_target.length,
-                forecast_O3_length: transformed.forecast_O3_target.length,
-                forecast_NO2_length: transformed.forecast_NO2_target.length
+            // Return the ML response directly - frontend now handles this format
+            console.log('Passing ML response directly:', {
+                dates_length: mlData.dates?.length,
+                actual_O3_length: mlData.actual?.O3_target?.length,
+                actual_NO2_length: mlData.actual?.NO2_target?.length,
+                predicted_O3_length: mlData.predicted?.O3_target?.length,
+                predicted_NO2_length: mlData.predicted?.NO2_target?.length,
+                forecast_O3_length: mlData.forecast?.O3_target?.length,
+                forecast_NO2_length: mlData.forecast?.NO2_target?.length,
+                historical_dates_length: mlData.historical?.dates?.length,
+                metrics: mlData.metrics
             });
-            return transformed;
+            
+            // Build historical object from actual data where forecast is null
+            // Historical = data points before forecast starts
+            const dates = mlData.dates || [];
+            const actualO3 = mlData.actual?.O3_target || [];
+            const actualNO2 = mlData.actual?.NO2_target || [];
+            const forecastO3 = mlData.forecast?.O3_target || [];
+            const forecastNO2 = mlData.forecast?.NO2_target || [];
+            
+            const historical = {
+                dates: [] as string[],
+                O3_target: [] as (number | null)[],
+                NO2_target: [] as (number | null)[]
+            };
+            
+            // Historical points are where forecast is null
+            for (let i = 0; i < dates.length; i++) {
+                const hasForecast = forecastO3[i] !== null && forecastO3[i] !== undefined;
+                if (!hasForecast) {
+                    historical.dates.push(dates[i]);
+                    historical.O3_target.push(actualO3[i]);
+                    historical.NO2_target.push(actualNO2[i]);
+                }
+            }
+            
+            console.log('Built historical data:', {
+                historical_dates_length: historical.dates.length,
+                historical_O3_length: historical.O3_target.length,
+                historical_NO2_length: historical.NO2_target.length
+            });
+            
+            return {
+                dates: mlData.dates,
+                historical: historical,
+                actual: mlData.actual,
+                predicted: mlData.predicted,
+                forecast: mlData.forecast,
+                metrics: mlData.metrics
+            };
         }
-
-
         
         return mlData;
       } catch (error) {

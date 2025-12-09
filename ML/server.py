@@ -37,6 +37,8 @@ logger = logging.getLogger("AirQualityServer")
 # Global State
 models = {}
 era5_data = None
+site_dates_cache = {}  # Cache for site available dates
+sites_cache = []  # Pre-computed sites response for /sites/ endpoint
 
 # --- Feature Columns ---
 FEATURE_COLS = [
@@ -67,7 +69,64 @@ def load_era5_data():
     else:
         logger.warning(f"⚠️ ERA5 data not found at {ERA5_DATA_PATH}.")
 
+def load_site_dates():
+    """
+    Load available dates for each site from train and unseen data files.
+    Returns a dict: {site_id: {"available_dates": [...], "predictable_dates": [...]}}
+    """
+    global site_dates_cache
+    from datetime import timedelta
+    
+    site_dates = {}
+    
+    # Scan for site files (site_1_train_data.csv, site_1_unseen_input_data.csv, etc.)
+    for site_id in range(1, 8):  # Sites 1-7
+        all_dates = set()
+        
+        # Check both train and unseen data files
+        for file_type in ["train_data", "unseen_input_data"]:
+            file_path = DATA_DIR / f"site_{site_id}_{file_type}.csv"
+            if file_path.exists():
+                try:
+                    df = pd.read_csv(file_path)
+                    # Create date from year, month, day columns
+                    if all(col in df.columns for col in ["year", "month", "day"]):
+                        df["date"] = pd.to_datetime(
+                            df[["year", "month", "day"]].astype(int).assign(
+                                year=lambda x: x["year"].astype(int),
+                                month=lambda x: x["month"].astype(int),
+                                day=lambda x: x["day"].astype(int)
+                            )
+                        )
+                        unique_dates = df["date"].dt.strftime("%Y-%m-%d").unique()
+                        all_dates.update(unique_dates)
+                except Exception as e:
+                    logger.warning(f"Error loading dates from {file_path}: {e}")
+        
+        # Sort dates
+        available_dates = sorted(list(all_dates))
+        
+        # Calculate predictable dates (each available date + 1 day)
+        predictable_dates = []
+        for date_str in available_dates:
+            next_date = pd.to_datetime(date_str) + timedelta(days=1)
+            predictable_dates.append(next_date.strftime("%Y-%m-%d"))
+        
+        # Remove duplicates and sort
+        predictable_dates = sorted(list(set(predictable_dates)))
+        
+        site_dates[str(site_id)] = {
+            "available_dates": available_dates,
+            "predictable_dates": predictable_dates
+        }
+        
+        logger.info(f"Site {site_id}: {len(available_dates)} available dates, {len(predictable_dates)} predictable dates")
+    
+    site_dates_cache = site_dates
+    return site_dates
+
 def load_sites_data():
+    global site_dates_cache
     if SITES_DATA_PATH.exists():
         try:
             # Read tab-separated file with flexible whitespace
@@ -77,12 +136,20 @@ def load_sites_data():
             
             sites = []
             for _, row in df.iterrows():
-                sites.append({
-                    "id": str(row["Site"]),
+                site_id = str(int(row["Site"]))
+                site_info = {
+                    "id": site_id,
                     "latitude": row["Latitude N"],
                     "longitude": row["Longitude E"],
-                    "name": f"Site {row['Site']}" # Default name if not present
-                })
+                    "name": f"Site {site_id}",
+                    "predictable_dates": []
+                }
+                
+                # Add predictable dates from cache if available
+                if site_id in site_dates_cache:
+                    site_info["predictable_dates"] = site_dates_cache[site_id]["predictable_dates"]
+                
+                sites.append(site_info)
             return sites
         except Exception as e:
             logger.error(f"Error loading sites data: {e}")
@@ -240,7 +307,15 @@ async def parse_uploaded_file(file: UploadFile) -> pd.DataFrame:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global sites_cache
+    
     load_era5_data()
+    load_site_dates()  # Load available dates for all sites
+    
+    # Pre-compute and cache sites data for fast /sites/ responses
+    sites_cache = load_sites_data()
+    logger.info(f"✅ Sites data cached: {len(sites_cache)} sites with predictable dates")
+    
     o3_path = ARTIFACT_DIR / "production_O3_era5_spatial.json"
     no2_path = ARTIFACT_DIR / "production_NO2_era5_spatial.json"
     
@@ -256,6 +331,8 @@ async def lifespan(app: FastAPI):
         
     yield
     models.clear()
+    site_dates_cache.clear()
+    sites_cache = []
 
 app = FastAPI(lifespan=lifespan)
 
@@ -361,10 +438,93 @@ async def run_forecast_pipeline(df: pd.DataFrame, site_id: str, resample: Option
 # --- A. Forecast (Default) ---
 @app.get("/sites/")
 async def get_sites():
-    sites = await run_in_threadpool(load_sites_data)
-    if not sites:
+    """Return cached sites data (pre-computed at startup for fast response)"""
+    if not sites_cache:
         raise HTTPException(status_code=404, detail="No sites data available")
-    return sites
+    return sites_cache
+
+class ForecastByDateInput(BaseModel):
+    site_id: str
+    forecast_date: str  # YYYY-MM-DD format
+
+@app.post("/forecast/by-date/")
+async def forecast_by_date(payload: ForecastByDateInput):
+    """
+    Forecast for a specific date. Loads data from CSV automatically.
+    forecast_date is the date we want to predict FOR.
+    We load the PREVIOUS day's data as input (since predictable_date = available_date + 1).
+    """
+    from datetime import datetime, timedelta
+    
+    site_id = payload.site_id
+    forecast_date = payload.forecast_date
+    
+    # Parse forecast date and get the input date (previous day)
+    try:
+        target_date = datetime.strptime(forecast_date, "%Y-%m-%d")
+        input_date = target_date - timedelta(days=1)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {forecast_date}. Use YYYY-MM-DD")
+    
+    input_year = input_date.year
+    input_month = input_date.month
+    input_day = input_date.day
+    
+    logger.info(f"Forecast date: {forecast_date}, Loading input data for: {input_year}-{input_month:02d}-{input_day:02d}")
+    
+    # Try to load data from both unseen_input_data and train_data files
+    df_filtered = pd.DataFrame()
+    
+    for file_type in ["unseen_input_data", "train_data"]:
+        file_path = DATA_DIR / f"site_{site_id}_{file_type}.csv"
+        
+        if not file_path.exists():
+            continue
+        
+        try:
+            df = pd.read_csv(file_path)
+            
+            # Filter for the input date (24 hours before forecast date)
+            df_date = df[
+                (df["year"].astype(int) == input_year) & 
+                (df["month"].astype(int) == input_month) & 
+                (df["day"].astype(int) == input_day)
+            ].copy()
+            
+            if not df_date.empty:
+                df_filtered = df_date
+                logger.info(f"Found data in {file_type} for site {site_id}")
+                break
+                
+        except Exception as e:
+            logger.warning(f"Error reading {file_path}: {e}")
+            continue
+    
+    if df_filtered.empty:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"No data found for date {input_year}-{input_month:02d}-{input_day:02d} in site {site_id}"
+        )
+    
+    try:
+        # Sort by hour and take 24 hours
+        df_filtered = df_filtered.sort_values("hour").head(24)
+        
+        logger.info(f"Found {len(df_filtered)} data points for site {site_id}, date {input_year}-{input_month:02d}-{input_day:02d}")
+        
+        # Create datetime column from year, month, day, hour
+        df_filtered["datetime"] = pd.to_datetime(
+            df_filtered[["year", "month", "day", "hour"]].astype(int).rename(columns={"hour": "hour"})
+        )
+        
+        # Run the forecast pipeline
+        return await run_forecast_pipeline(df_filtered, site_id)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error loading data for site {site_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error loading data: {str(e)}")
 
 @app.post("/forecast/json/")
 async def forecast_json(
@@ -506,7 +666,6 @@ async def websocket_predict(websocket: WebSocket):
             # Send response with actual, historical, predicted, forecast, and metrics
             ws_response = {
                 "dates": res.get("dates", []),
-                "historical": historical,
                 "actual": res.get("actual", {}),
                 "historical": res.get("historical", {}),
                 "predicted": res.get("predicted", {}),

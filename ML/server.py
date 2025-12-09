@@ -37,6 +37,7 @@ logger = logging.getLogger("AirQualityServer")
 # Global State
 models = {}
 era5_data = None
+site_dates_cache = {}  # Cache for site available dates
 
 # --- Feature Columns ---
 FEATURE_COLS = [
@@ -67,7 +68,64 @@ def load_era5_data():
     else:
         logger.warning(f"⚠️ ERA5 data not found at {ERA5_DATA_PATH}.")
 
+def load_site_dates():
+    """
+    Load available dates for each site from train and unseen data files.
+    Returns a dict: {site_id: {"available_dates": [...], "predictable_dates": [...]}}
+    """
+    global site_dates_cache
+    from datetime import timedelta
+    
+    site_dates = {}
+    
+    # Scan for site files (site_1_train_data.csv, site_1_unseen_input_data.csv, etc.)
+    for site_id in range(1, 8):  # Sites 1-7
+        all_dates = set()
+        
+        # Check both train and unseen data files
+        for file_type in ["train_data", "unseen_input_data"]:
+            file_path = DATA_DIR / f"site_{site_id}_{file_type}.csv"
+            if file_path.exists():
+                try:
+                    df = pd.read_csv(file_path)
+                    # Create date from year, month, day columns
+                    if all(col in df.columns for col in ["year", "month", "day"]):
+                        df["date"] = pd.to_datetime(
+                            df[["year", "month", "day"]].astype(int).assign(
+                                year=lambda x: x["year"].astype(int),
+                                month=lambda x: x["month"].astype(int),
+                                day=lambda x: x["day"].astype(int)
+                            )
+                        )
+                        unique_dates = df["date"].dt.strftime("%Y-%m-%d").unique()
+                        all_dates.update(unique_dates)
+                except Exception as e:
+                    logger.warning(f"Error loading dates from {file_path}: {e}")
+        
+        # Sort dates
+        available_dates = sorted(list(all_dates))
+        
+        # Calculate predictable dates (each available date + 1 day)
+        predictable_dates = []
+        for date_str in available_dates:
+            next_date = pd.to_datetime(date_str) + timedelta(days=1)
+            predictable_dates.append(next_date.strftime("%Y-%m-%d"))
+        
+        # Remove duplicates and sort
+        predictable_dates = sorted(list(set(predictable_dates)))
+        
+        site_dates[str(site_id)] = {
+            "available_dates": available_dates,
+            "predictable_dates": predictable_dates
+        }
+        
+        logger.info(f"Site {site_id}: {len(available_dates)} available dates, {len(predictable_dates)} predictable dates")
+    
+    site_dates_cache = site_dates
+    return site_dates
+
 def load_sites_data():
+    global site_dates_cache
     if SITES_DATA_PATH.exists():
         try:
             # Read tab-separated file with flexible whitespace
@@ -77,12 +135,22 @@ def load_sites_data():
             
             sites = []
             for _, row in df.iterrows():
-                sites.append({
-                    "id": str(row["Site"]),
+                site_id = str(int(row["Site"]))
+                site_info = {
+                    "id": site_id,
                     "latitude": row["Latitude N"],
                     "longitude": row["Longitude E"],
-                    "name": f"Site {row['Site']}" # Default name if not present
-                })
+                    "name": f"Site {site_id}",
+                    "available_dates": [],
+                    "predictable_dates": []
+                }
+                
+                # Add dates from cache if available
+                if site_id in site_dates_cache:
+                    site_info["available_dates"] = site_dates_cache[site_id]["available_dates"]
+                    site_info["predictable_dates"] = site_dates_cache[site_id]["predictable_dates"]
+                
+                sites.append(site_info)
             return sites
         except Exception as e:
             logger.error(f"Error loading sites data: {e}")
@@ -241,6 +309,8 @@ async def parse_uploaded_file(file: UploadFile) -> pd.DataFrame:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     load_era5_data()
+    load_site_dates()  # Load available dates for all sites
+    
     o3_path = ARTIFACT_DIR / "production_O3_era5_spatial.json"
     no2_path = ARTIFACT_DIR / "production_NO2_era5_spatial.json"
     
@@ -256,6 +326,7 @@ async def lifespan(app: FastAPI):
         
     yield
     models.clear()
+    site_dates_cache.clear()
 
 app = FastAPI(lifespan=lifespan)
 

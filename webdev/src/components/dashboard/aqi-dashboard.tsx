@@ -24,10 +24,17 @@ import {
   Wind,
   Activity,
   BarChart3,
-  Calendar,
+  Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format, parse } from "date-fns";
 import {
   Card,
   CardContent,
@@ -93,10 +100,19 @@ interface AqiDashboardProps {
   onForecastUpdate?: (data: AqiData, siteId: string) => void;
 }
 
+// Site data including predictable dates from API
+interface Site {
+  id: string;
+  latitude: number;
+  longitude: number;
+  name: string;
+  available_dates: (string | Date)[];
+  predictable_dates: (string | Date)[];
+}
+
 export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
-  const [sites, setSites] = useState<
-    Record<string, { latitude: number; longitude: number }>
-  >({});
+  const [sites, setSites] = useState<Site[]>([]);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedSite, setSelectedSite] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [chartData, setChartData] = useState<any[]>([]);
@@ -123,20 +139,136 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
 
   const [isMounted, setIsMounted] = useState(false);
 
+  // Safe date parsing helper
+  const parseDate = (dateStr: string): Date | undefined => {
+    if (!dateStr || typeof dateStr !== "string") return undefined;
+    try {
+      const parsed = parse(dateStr, "yyyy-MM-dd", new Date());
+      return isNaN(parsed.getTime()) ? undefined : parsed;
+    } catch {
+      return undefined;
+    }
+  };
+
+  // Safe date formatting helper
+  const formatDateDisplay = (dateStr: string): string => {
+    const parsed = parseDate(dateStr);
+    if (!parsed) return "Select date";
+    try {
+      return format(parsed, "PPP");
+    } catch {
+      return dateStr;
+    }
+  };
+
   useEffect(() => {
     setIsMounted(true);
     const fetchSites = async () => {
       const { data, error } = await api.api.aqi.sites.get();
+      console.log("Sites API raw response:", { data, error, dataType: typeof data });
       if (data && !error) {
-        // @ts-ignore
-        setSites(data);
-        // @ts-ignore
-        const siteIds = Object.keys(data);
-        if (siteIds.length > 0) setSelectedSite(siteIds[0]);
+        // API returns array of sites with dates
+        // Handle both direct array and wrapped response
+        let sitesData: Site[];
+        if (Array.isArray(data)) {
+          sitesData = data as Site[];
+        } else if (typeof data === 'object' && data !== null) {
+          // Check if data is wrapped in some property
+          const maybeArray = Object.values(data).find(v => Array.isArray(v));
+          sitesData = (maybeArray as Site[]) || [];
+        } else {
+          sitesData = [];
+        }
+        
+        console.log("Parsed sites data:", sitesData);
+        console.log("First site:", sitesData[0]);
+        console.log("First site predictable_dates:", sitesData[0]?.predictable_dates?.slice(0, 5));
+        
+        setSites(sitesData);
+        if (sitesData.length > 0) {
+          setSelectedSite(sitesData[0].id);
+          // Set default date to first predictable date (convert Date to string if needed)
+          const firstPredictableDate = sitesData[0].predictable_dates?.[0];
+          if (firstPredictableDate) {
+            const dateStr = firstPredictableDate instanceof Date 
+              ? format(firstPredictableDate, 'yyyy-MM-dd')
+              : typeof firstPredictableDate === 'string' 
+                ? firstPredictableDate 
+                : format(new Date(firstPredictableDate), 'yyyy-MM-dd');
+            setForecastDate(dateStr);
+          }
+        }
       }
     };
     fetchSites();
   }, []);
+
+  // Update forecastDate when site changes to first predictable date
+  useEffect(() => {
+    if (!selectedSite || sites.length === 0) return;
+    const site = sites.find((s) => s.id === selectedSite);
+    const firstPredictableDate = site?.predictable_dates?.[0];
+    if (firstPredictableDate) {
+      const dateStr = firstPredictableDate instanceof Date 
+        ? format(firstPredictableDate, 'yyyy-MM-dd')
+        : typeof firstPredictableDate === 'string' 
+          ? firstPredictableDate 
+          : format(new Date(firstPredictableDate), 'yyyy-MM-dd');
+      setForecastDate(dateStr);
+    }
+  }, [selectedSite, sites]);
+
+  // Get predictable dates for selected site as date strings
+  const predictableDatesSet = useMemo(() => {
+    if (!selectedSite || sites.length === 0) return new Set<string>();
+    const site = sites.find((s) => s.id === selectedSite);
+    const rawDates = site?.predictable_dates || [];
+    
+    // Convert dates to strings (handle both string and Date object formats)
+    const dates = rawDates.map((d: string | Date) => {
+      if (typeof d === 'string') return d;
+      if (d instanceof Date) return format(d, 'yyyy-MM-dd');
+      // Handle date-like objects
+      try {
+        const dateObj = new Date(d);
+        return format(dateObj, 'yyyy-MM-dd');
+      } catch {
+        return null;
+      }
+    }).filter((d): d is string => d !== null);
+    
+    console.log("Predictable dates for site", selectedSite, ":", dates.length, "dates", dates.slice(0, 5));
+    return new Set(dates);
+  }, [selectedSite, sites]);
+
+  // Get the year range from predictable dates for calendar dropdowns
+  const { fromYear, toYear, fromDate, toDate } = useMemo(() => {
+    if (predictableDatesSet.size === 0) {
+      return { fromYear: 2019, toYear: 2025, fromDate: undefined, toDate: undefined };
+    }
+    const dates = Array.from(predictableDatesSet).sort();
+    const firstDate = dates[0];
+    const lastDate = dates[dates.length - 1];
+    
+    // Ensure we have valid strings before splitting
+    if (typeof firstDate !== 'string' || typeof lastDate !== 'string') {
+      console.error("Invalid date format in predictableDatesSet:", { firstDate, lastDate });
+      return { fromYear: 2019, toYear: 2025, fromDate: undefined, toDate: undefined };
+    }
+    
+    return {
+      fromYear: parseInt(firstDate.split("-")[0]),
+      toYear: parseInt(lastDate.split("-")[0]),
+      fromDate: parseDate(firstDate),
+      toDate: parseDate(lastDate),
+    };
+  }, [predictableDatesSet]);
+
+  // Check if a date is predictable (can be selected)
+  const isDatePredictable = (date: Date): boolean => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    return predictableDatesSet.has(dateStr);
+  };
 
   const runForecast = async () => {
     if (!selectedSite) return;
@@ -634,20 +766,52 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
           <CardContent>
             <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
               {/* Step 1: Date Selection */}
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 rounded-lg border border-indigo-200/60 shadow-sm hover:shadow-md transition-all duration-300">
-                <Calendar className="w-4 h-4 text-indigo-600" />
-                <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground">
-                    Step 1: Forecast Date
-                  </span>
-                  <input
-                    type="date"
-                    value={forecastDate}
-                    onChange={(e) => setForecastDate(e.target.value)}
-                    className="border-0 bg-transparent text-slate-700 dark:text-slate-200 font-semibold text-base focus:outline-none cursor-pointer"
-                  />
-                </div>
-              </div>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <div className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 rounded-lg border border-indigo-200/60 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer">
+                    <CalendarIcon className="w-4 h-4 text-indigo-600" />
+                    <div className="flex flex-col">
+                      <span className="text-xs text-muted-foreground">
+                        Step 1: Forecast Date
+                      </span>
+                      <span className="text-slate-700 dark:text-slate-200 font-semibold text-base">
+                        {sites.length === 0 ? "Loading..." : formatDateDisplay(forecastDate)}
+                      </span>
+                    </div>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  {predictableDatesSet.size > 0 ? (
+                    <Calendar
+                      key={`calendar-${selectedSite}-${predictableDatesSet.size}`}
+                      mode="single"
+                      captionLayout="dropdown"
+                      startMonth={fromDate}
+                      endMonth={toDate}
+                      defaultMonth={fromDate}
+                      selected={parseDate(forecastDate)}
+                      onSelect={(date) => {
+                        if (date) {
+                          setForecastDate(format(date, "yyyy-MM-dd"));
+                          setCalendarOpen(false);
+                        }
+                      }}
+                      disabled={(date) => !isDatePredictable(date)}
+                      initialFocus
+                    />
+                  ) : (
+                    <div className="p-6 text-center text-muted-foreground">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                      Loading available dates...
+                    </div>
+                  )}
+                  <div className="p-3 border-t text-xs text-muted-foreground">
+                    {predictableDatesSet.size > 0 
+                      ? `${predictableDatesSet.size} predictable dates available (${fromYear}-${toYear})`
+                      : "Fetching dates from server..."}
+                  </div>
+                </PopoverContent>
+              </Popover>
 
               {/* Step 2: Site Selection */}
               <div className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-900 rounded-lg border border-teal-200/60 shadow-sm hover:shadow-md transition-all duration-300">
@@ -661,9 +825,9 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       <SelectValue placeholder="Choose location" />
                     </SelectTrigger>
                     <SelectContent>
-                      {Object.keys(sites).map((site) => (
-                        <SelectItem key={site} value={site}>
-                          {getSiteName(site)}
+                      {sites.map((site) => (
+                        <SelectItem key={site.id} value={site.id}>
+                          {getSiteName(site.id)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1113,7 +1277,8 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="h-[400px] w-full">
+            <div className="h-[400px] w-full" style={{ minHeight: 400 }}>
+              {combinedData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={combinedData}
@@ -1281,6 +1446,11 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   />
                 </AreaChart>
               </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Run a forecast to see O3 data
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -1383,7 +1553,8 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="h-[400px] w-full">
+            <div className="h-[400px] w-full" style={{ minHeight: 400 }}>
+              {combinedData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={combinedData}
@@ -1551,6 +1722,11 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   />
                 </AreaChart>
               </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Run a forecast to see NO2 data
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

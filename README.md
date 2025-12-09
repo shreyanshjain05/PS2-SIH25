@@ -1,0 +1,81 @@
+# Air Quality Forecasting System (SIH 2025)
+
+A comprehensive full-stack application designed to forecast and visualize air quality parameters (specifically O3 and NO2) using advanced machine learning models and satellite data integration.
+
+## 🚀 Overview
+
+This system provides real-time and forecasted air quality analytics for specific monitoring sites. It combines a modern interactive dashboard with a robust backend powered by XGBoost models.
+
+### Key Features
+- **Interactive Dashboard**: Built with Next.js, featuring dynamic charts, heatmaps, and site selection.
+- **ML Forecasting**: Custom XGBoost models trained on historical and satellite data to predict O3 and NO2 levels.
+- **API First**: FastAPI backend serving predictions and historical data.
+- **Containerized**: Fully dockerized for consistent deployment.
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 14, TypeScript, Tailwind CSS, Shadcn UI, Recharts.
+- **Backend**: FastAPI (Python), Pandas, XGBoost, Joblib.
+- **Infrastructure**: Docker, Docker Compose, Nginx.
+- **Data**: Historical AQI data, Sentinel-5P Satellite data, ERA5 Reanalysis data.
+
+## 🏁 Getting Started
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (recommended)
+- OR [Bun](https://bun.sh/) and Python 3.10+ for local development.
+
+### Running with Docker (Recommended)
+
+The easiest way to run the entire stack is using Docker Compose.
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd PS2-SIH25
+   ```
+
+2. **Start the services**
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Access the application**
+   - **Dashboard**: [http://localhost](http://localhost) (via Nginx)
+   - **Backend API Docs**: [http://localhost/api/docs](http://localhost/api/docs)
+
+### Local Development
+
+#### Frontend (`webdev/`)
+```bash
+cd webdev
+bun install
+bun run dev
+# App running at http://localhost:3000
+```
+
+#### Backend (`ML/`)
+```bash
+cd ML
+pip install -r requirements.txt
+uvicorn server:app --reload --port 8000
+# API running at http://localhost:8000
+```
+
+## 📂 Project Structure
+
+```
+PS2-SIH25/
+├── ML/                 # FastAPI Backend & ML Models
+│   ├── model/          # Pre-trained .pkl and .json models
+│   ├── server.py       # Main API server entry point
+│   ├── pipeline.py     # Forecasting pipeline logic
+│   └── Data_.../       # Training datasets
+├── webdev/             # Next.js Frontend
+│   ├── src/            # Source code (Components, Pages)
+│   └── public/         # Static assets
+├── docker/             # Docker configuration files
+├── docker-compose.yml  # Orchestration
+└── nginx/              # Reverse proxy config
+```

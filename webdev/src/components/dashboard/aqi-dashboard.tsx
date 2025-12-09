@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { api } from "@/lib/eden";
 import {
   LineChart,
@@ -24,6 +24,7 @@ import {
   Wind,
   Activity,
   BarChart3,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import {
   Card,
@@ -43,6 +44,13 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { getSiteName } from "@/lib/sites";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 // New API response format matching ML service
 export interface AqiData {
@@ -101,10 +109,18 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
   const [forecastLimit, setForecastLimit] = useState(72);
   const [maxForecastHours, setMaxForecastHours] = useState(72);
   const [hoveredData, setHoveredData] = useState<any>(null);
-  
+
+  // Date selection state
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [viewMode, setViewMode] = useState<"full" | "daily">("full");
+
   // Chart view mode: "actual-forecast" or "historical-forecast"
-  const [o3ViewMode, setO3ViewMode] = useState<"actual-forecast" | "historical-forecast">("historical-forecast");
-  const [no2ViewMode, setNo2ViewMode] = useState<"actual-forecast" | "historical-forecast">("historical-forecast");
+  const [o3ViewMode, setO3ViewMode] = useState<
+    "actual-forecast" | "historical-forecast"
+  >("historical-forecast");
+  const [no2ViewMode, setNo2ViewMode] = useState<
+    "actual-forecast" | "historical-forecast"
+  >("historical-forecast");
 
   const [isMounted, setIsMounted] = useState(false);
 
@@ -176,7 +192,7 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
 
           // Build a map of historical data by index for quick lookup
           const historicalDatesSet = new Set(response.historical?.dates || []);
-          
+
           for (let i = 0; i < dataLength; i++) {
             const currentDate = response.dates[i];
             const actual_o3 = response.actual?.O3_target?.[i];
@@ -187,15 +203,17 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
             const forecast_no2 = response.forecast?.NO2_target?.[i];
 
             // Check if this is a forecast point (forecast value exists and is not null)
-            const isForecast = forecast_o3 !== null && forecast_o3 !== undefined;
-            
+            const isForecast =
+              forecast_o3 !== null && forecast_o3 !== undefined;
+
             // Check if this date is in historical data
-            const isHistorical = historicalDatesSet.has(currentDate) || !isForecast;
+            const isHistorical =
+              historicalDatesSet.has(currentDate) || !isForecast;
 
             // Get historical values from the dedicated historical object
             let historical_o3 = null;
             let historical_no2 = null;
-            
+
             if (response.historical && response.historical.dates) {
               const histIndex = response.historical.dates.indexOf(currentDate);
               if (histIndex !== -1) {
@@ -203,7 +221,7 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                 historical_no2 = response.historical.NO2_target?.[histIndex];
               }
             }
-            
+
             // Fallback: use actual values for historical period if historical object not available
             if (historical_o3 === null && !isForecast) {
               historical_o3 = actual_o3;
@@ -229,13 +247,17 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
               isForecast,
             });
           }
-          
+
           console.log("Merged data with historical:", {
             total: mergedData.length,
-            withHistoricalO3: mergedData.filter(d => d.O3 !== null).length,
-            withForecastO3: mergedData.filter(d => d.O3_Forecast !== null).length,
+            withHistoricalO3: mergedData.filter((d) => d.O3 !== null).length,
+            withForecastO3: mergedData.filter((d) => d.O3_Forecast !== null)
+              .length,
           });
-        } else if (response.historical_timestamps && Array.isArray(response.historical_timestamps)) {
+        } else if (
+          response.historical_timestamps &&
+          Array.isArray(response.historical_timestamps)
+        ) {
           // Fallback to legacy format
           const histLength = Math.min(
             response.historical_timestamps.length,
@@ -255,7 +277,10 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
             });
           }
 
-          if (response.forecast_timestamps && Array.isArray(response.forecast_timestamps)) {
+          if (
+            response.forecast_timestamps &&
+            Array.isArray(response.forecast_timestamps)
+          ) {
             const forecastLength = Math.min(
               response.forecast_timestamps.length,
               response.forecast_O3_target?.length || 0,
@@ -303,7 +328,7 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
       const dates = Array.from({ length: totalPoints }, (_, i) => {
         const date = new Date();
         date.setHours(date.getHours() + i - historicalPoints);
-        return date.toISOString().slice(0, 16).replace('T', ' ');
+        return date.toISOString().slice(0, 16).replace("T", " ");
       });
 
       // Generate actual values for ALL points (historical + actual ground truth for forecast period)
@@ -315,7 +340,8 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
         } else {
           // Actual ground truth in forecast period (for comparison)
           const forecastIdx = i - historicalPoints;
-          if (forecastIdx > 10 && forecastIdx < 15) return 105 + Math.random() * 15; // Actual spike
+          if (forecastIdx > 10 && forecastIdx < 15)
+            return 105 + Math.random() * 15; // Actual spike
           return 48 + Math.random() * 18;
         }
       });
@@ -324,7 +350,8 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
           return 20 + Math.random() * 15;
         } else {
           const forecastIdx = i - historicalPoints;
-          if (forecastIdx > 20 && forecastIdx < 25) return 45 + Math.random() * 12;
+          if (forecastIdx > 20 && forecastIdx < 25)
+            return 45 + Math.random() * 12;
           return 23 + Math.random() * 12;
         }
       });
@@ -333,13 +360,15 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
       const forecast_O3 = Array.from({ length: totalPoints }, (_, i) => {
         if (i < historicalPoints) return null;
         const forecastIdx = i - historicalPoints;
-        if (forecastIdx > 10 && forecastIdx < 15) return 110 + Math.random() * 10; // Forecasted spike
+        if (forecastIdx > 10 && forecastIdx < 15)
+          return 110 + Math.random() * 10; // Forecasted spike
         return 50 + Math.random() * 20;
       });
       const forecast_NO2 = Array.from({ length: totalPoints }, (_, i) => {
         if (i < historicalPoints) return null;
         const forecastIdx = i - historicalPoints;
-        if (forecastIdx > 20 && forecastIdx < 25) return 50 + Math.random() * 10;
+        if (forecastIdx > 20 && forecastIdx < 25)
+          return 50 + Math.random() * 10;
         return 25 + Math.random() * 10;
       });
 
@@ -347,20 +376,26 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
       const historical = {
         dates: dates.slice(0, historicalPoints),
         O3_target: actual_O3.slice(0, historicalPoints) as (number | null)[],
-        NO2_target: actual_NO2.slice(0, historicalPoints) as (number | null)[]
+        NO2_target: actual_NO2.slice(0, historicalPoints) as (number | null)[],
       };
 
       // Simulated metrics
       const simulatedMetrics = {
         O3: { mae: 4.783, rmse: 7.099, r2: 0.9225 },
-        NO2: { mae: 4.087, rmse: 5.338, r2: 0.9369 }
+        NO2: { mae: 4.087, rmse: 5.338, r2: 0.9369 },
       };
 
       const response: AqiData = {
         dates,
         historical,
-        actual: { O3_target: actual_O3 as (number | null)[], NO2_target: actual_NO2 as (number | null)[] },
-        forecast: { O3_target: forecast_O3 as (number | null)[], NO2_target: forecast_NO2 as (number | null)[] },
+        actual: {
+          O3_target: actual_O3 as (number | null)[],
+          NO2_target: actual_NO2 as (number | null)[],
+        },
+        forecast: {
+          O3_target: forecast_O3 as (number | null)[],
+          NO2_target: forecast_NO2 as (number | null)[],
+        },
         metrics: simulatedMetrics,
         metadata: { row_count: totalPoints },
         errors: {
@@ -377,7 +412,7 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
       setMetrics(response.metrics || null);
 
       const mergedData: any[] = [];
-      
+
       // Build historical dates set for lookup
       const historicalDatesSet = new Set(historical.dates);
 
@@ -390,11 +425,11 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
         const forecast_no2 = response.forecast?.NO2_target?.[i];
 
         const isForecast = forecast_o3 !== null && forecast_o3 !== undefined;
-        
+
         // Get historical values
         let hist_o3 = null;
         let hist_no2 = null;
-        
+
         const histIndex = historical.dates.indexOf(currentDate);
         if (histIndex !== -1) {
           hist_o3 = historical.O3_target[histIndex];
@@ -418,11 +453,11 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
           isForecast,
         });
       }
-      
+
       console.log("Simulated data with historical:", {
         total: mergedData.length,
-        withHistoricalO3: mergedData.filter(d => d.O3 !== null).length,
-        withForecastO3: mergedData.filter(d => d.O3_Forecast !== null).length,
+        withHistoricalO3: mergedData.filter((d) => d.O3 !== null).length,
+        withForecastO3: mergedData.filter((d) => d.O3_Forecast !== null).length,
       });
 
       // Set max forecast hours
@@ -442,16 +477,74 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
     return forecast.slice(0, forecastLimit);
   }, [chartData, forecastLimit]);
 
+  // Extract available dates from chart data
+  const availableDates = useMemo(() => {
+    const dateSet = new Set<string>();
+    chartData.forEach((d) => {
+      if (d.date) {
+        // Extract date part only (YYYY-MM-DD)
+        const datePart = d.date.split(" ")[0];
+        dateSet.add(datePart);
+      }
+    });
+    return Array.from(dateSet).sort();
+  }, [chartData]);
+
+  // Check if a date can be selected (previous date must have data)
+  const isDateSelectable = useCallback(
+    (date: Date) => {
+      const dateStr = date.toISOString().split("T")[0];
+      const previousDate = new Date(date);
+      previousDate.setDate(previousDate.getDate() - 1);
+      const previousDateStr = previousDate.toISOString().split("T")[0];
+
+      // Check if this date exists in the data
+      const hasCurrentDate = availableDates.includes(dateStr);
+      // Check if previous date exists in the data
+      const hasPreviousDate = availableDates.includes(previousDateStr);
+
+      // The date can be selected only if it exists AND the previous date also exists
+      return hasCurrentDate && hasPreviousDate;
+    },
+    [availableDates]
+  );
+
+  // Get the data filtered by selected date (24 hours)
+  const dailyFilteredData = useMemo(() => {
+    if (!selectedDate || viewMode !== "daily") return null;
+
+    const dateStr = selectedDate.toISOString().split("T")[0];
+
+    return chartData.filter((d) => {
+      if (!d.date) return false;
+      const datePart = d.date.split(" ")[0];
+      return datePart === dateStr;
+    });
+  }, [chartData, selectedDate, viewMode]);
+
   const combinedData = useMemo(() => {
+    // If daily view mode with selected date, show only that day's data
+    if (
+      viewMode === "daily" &&
+      dailyFilteredData &&
+      dailyFilteredData.length > 0
+    ) {
+      return dailyFilteredData;
+    }
+
     // Show ALL historical data plus forecast data for complete view
     // This allows viewing actual vs predicted on historical data, plus forecasts
     const combined = [...historicalData, ...forecastData];
-    
+
     // Debug logging
     if (combined.length > 0) {
-      const historicalO3Values = combined.filter(d => d.O3 !== null && d.O3 !== undefined);
-      const forecastO3Values = combined.filter(d => d.O3_Forecast !== null && d.O3_Forecast !== undefined);
-      
+      const historicalO3Values = combined.filter(
+        (d) => d.O3 !== null && d.O3 !== undefined
+      );
+      const forecastO3Values = combined.filter(
+        (d) => d.O3_Forecast !== null && d.O3_Forecast !== undefined
+      );
+
       console.log("Chart Data Debug:", {
         totalPoints: combined.length,
         historicalCount: historicalData.length,
@@ -462,19 +555,28 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
         sampleForecast: forecastO3Values.slice(0, 2),
       });
     }
-    
+
     return combined;
-  }, [historicalData, forecastData]);
+  }, [historicalData, forecastData, viewMode, dailyFilteredData]);
 
   const stats = useMemo(() => {
-    if (forecastData.length === 0) return null;
+    // Use daily filtered data if in daily view, otherwise use forecast data
+    const dataForStats =
+      viewMode === "daily" && dailyFilteredData && dailyFilteredData.length > 0
+        ? dailyFilteredData
+        : forecastData;
 
-    const o3Values = forecastData
-      .map((d) => d.O3_Forecast)
+    if (dataForStats.length === 0) return null;
+
+    // Get O3 values - prefer forecast values, fallback to historical
+    const o3Values = dataForStats
+      .map((d) => d.O3_Forecast ?? d.O3)
       .filter((v) => v !== undefined && v !== null) as number[];
-    const no2Values = forecastData
-      .map((d) => d.NO2_Forecast)
+    const no2Values = dataForStats
+      .map((d) => d.NO2_Forecast ?? d.NO2)
       .filter((v) => v !== undefined && v !== null) as number[];
+
+    if (o3Values.length === 0 || no2Values.length === 0) return null;
 
     return {
       o3: {
@@ -488,7 +590,7 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
         avg: no2Values.reduce((a, b) => a + b, 0) / no2Values.length,
       },
     };
-  }, [forecastData]);
+  }, [forecastData, viewMode, dailyFilteredData]);
 
   const handleMouseMove = (state: any) => {
     console.log("handleMouseMove called, state:", state);
@@ -500,6 +602,22 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
       console.log("No activePayload in mouse move");
     }
   };
+
+  // Format X-axis label based on view mode
+  const formatXAxisLabel = useCallback(
+    (dataPoint: any) => {
+      if (viewMode === "daily" && dataPoint?.date) {
+        // Extract hour from datetime string like "2024-06-15 01:00:00"
+        const timePart = dataPoint.date.split(" ")[1];
+        if (timePart) {
+          const hour = timePart.split(":")[0];
+          return `${hour}:00`;
+        }
+      }
+      return `${dataPoint?.rawTimestamp ?? 0}h`;
+    },
+    [viewMode]
+  );
 
   if (!isMounted) return null;
 
@@ -558,6 +676,108 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
           </Button>
         </div>
       </div>
+
+      {/* Date Selection Card */}
+      {chartData.length > 0 && (
+        <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5 text-indigo-600" />
+              Date Selection
+            </CardTitle>
+            <CardDescription>
+              Select a specific date to view 24-hour data. Only dates with
+              previous day data available can be selected.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === "full" ? "default" : "outline"}
+                  onClick={() => {
+                    setViewMode("full");
+                    setSelectedDate(undefined);
+                  }}
+                  className="text-sm"
+                >
+                  Full View
+                </Button>
+                <Button
+                  variant={viewMode === "daily" ? "default" : "outline"}
+                  onClick={() => setViewMode("daily")}
+                  className="text-sm"
+                >
+                  Daily View
+                </Button>
+              </div>
+
+              {viewMode === "daily" && (
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-[240px] justify-start text-left font-normal",
+                          !selectedDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {selectedDate ? (
+                          selectedDate.toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => {
+                          if (date && isDateSelectable(date)) {
+                            setSelectedDate(date);
+                          }
+                        }}
+                        disabled={(date) => !isDateSelectable(date)}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {selectedDate && (
+                    <Badge variant="secondary" className="text-sm">
+                      Showing 24 hours of data
+                    </Badge>
+                  )}
+                </div>
+              )}
+
+              {viewMode === "daily" && !selectedDate && (
+                <p className="text-sm text-muted-foreground">
+                  Please select a date. Only dates with previous day data can be
+                  selected.
+                </p>
+              )}
+            </div>
+
+            {availableDates.length > 0 && (
+              <div className="mt-4 p-3 bg-white/50 dark:bg-slate-900/50 rounded-lg border">
+                <p className="text-sm text-muted-foreground mb-2">
+                  <strong>Available date range:</strong> {availableDates[0]} to{" "}
+                  {availableDates[availableDates.length - 1]}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Total days with data: {availableDates.length}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {stats && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -642,18 +862,30 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
               <CardContent>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">MAE</p>
-                    <p className="text-2xl font-bold text-blue-600">{metrics.O3.mae.toFixed(3)}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      MAE
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {metrics.O3.mae.toFixed(3)}
+                    </p>
                     <p className="text-xs text-muted-foreground">µg/m³</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">RMSE</p>
-                    <p className="text-2xl font-bold text-blue-600">{metrics.O3.rmse.toFixed(3)}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      RMSE
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {metrics.O3.rmse.toFixed(3)}
+                    </p>
                     <p className="text-xs text-muted-foreground">µg/m³</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">R²</p>
-                    <p className="text-2xl font-bold text-blue-600">{(metrics.O3.r2 * 100).toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      R²
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {(metrics.O3.r2 * 100).toFixed(1)}%
+                    </p>
                     <p className="text-xs text-muted-foreground">Accuracy</p>
                   </div>
                 </div>
@@ -671,18 +903,30 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
               <CardContent>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">MAE</p>
-                    <p className="text-2xl font-bold text-purple-600">{metrics.NO2.mae.toFixed(3)}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      MAE
+                    </p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {metrics.NO2.mae.toFixed(3)}
+                    </p>
                     <p className="text-xs text-muted-foreground">µg/m³</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">RMSE</p>
-                    <p className="text-2xl font-bold text-purple-600">{metrics.NO2.rmse.toFixed(3)}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      RMSE
+                    </p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {metrics.NO2.rmse.toFixed(3)}
+                    </p>
                     <p className="text-xs text-muted-foreground">µg/m³</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">R²</p>
-                    <p className="text-2xl font-bold text-purple-600">{(metrics.NO2.r2 * 100).toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      R²
+                    </p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {(metrics.NO2.r2 * 100).toFixed(1)}%
+                    </p>
                     <p className="text-xs text-muted-foreground">Accuracy</p>
                   </div>
                 </div>
@@ -736,41 +980,79 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                 <CardTitle className="flex items-center gap-2">
                   <Wind className="w-5 h-5 text-blue-500" />
                   Ozone (O3) Levels
+                  {viewMode === "daily" && selectedDate && (
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      {selectedDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </Badge>
+                  )}
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  {o3ViewMode === "actual-forecast" ? "Actual vs Forecast comparison" : "Historical vs Forecast comparison"} (µg/m³)
+                  {viewMode === "daily" && selectedDate
+                    ? `24-hour data for ${selectedDate.toLocaleDateString(
+                        "en-US",
+                        { weekday: "long", month: "long", day: "numeric" }
+                      )}`
+                    : o3ViewMode === "actual-forecast"
+                    ? "Actual vs Forecast comparison"
+                    : "Historical vs Forecast comparison"}{" "}
+                  (µg/m³)
                 </CardDescription>
               </div>
               <div className="flex items-center gap-4">
-                <Select value={o3ViewMode} onValueChange={(val: "actual-forecast" | "historical-forecast") => setO3ViewMode(val)}>
+                <Select
+                  value={o3ViewMode}
+                  onValueChange={(
+                    val: "actual-forecast" | "historical-forecast"
+                  ) => setO3ViewMode(val)}
+                >
                   <SelectTrigger className="w-[200px] bg-white dark:bg-slate-900">
                     <SelectValue placeholder="Select view" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="historical-forecast">Historical vs Forecast</SelectItem>
-                    <SelectItem value="actual-forecast">Actual vs Forecast</SelectItem>
+                    <SelectItem value="historical-forecast">
+                      Historical vs Forecast
+                    </SelectItem>
+                    <SelectItem value="actual-forecast">
+                      Actual vs Forecast
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {stats && (
                   <div className="flex gap-2">
                     {o3ViewMode === "historical-forecast" ? (
                       <>
-                        <Badge variant="secondary" className="bg-blue-100 dark:bg-blue-900/50">
+                        <Badge
+                          variant="secondary"
+                          className="bg-blue-100 dark:bg-blue-900/50"
+                        >
                           <span className="w-2 h-2 rounded-full bg-blue-600 mr-2" />
                           Historical
                         </Badge>
-                        <Badge variant="secondary" className="bg-cyan-100 dark:bg-cyan-900/50">
+                        <Badge
+                          variant="secondary"
+                          className="bg-cyan-100 dark:bg-cyan-900/50"
+                        >
                           <span className="w-2 h-2 rounded-full bg-cyan-600 mr-2" />
                           Forecast
                         </Badge>
                       </>
                     ) : (
                       <>
-                        <Badge variant="secondary" className="bg-green-100 dark:bg-green-900/50">
+                        <Badge
+                          variant="secondary"
+                          className="bg-green-100 dark:bg-green-900/50"
+                        >
                           <span className="w-2 h-2 rounded-full bg-green-500 mr-2" />
                           Actual
                         </Badge>
-                        <Badge variant="secondary" className="bg-cyan-100 dark:bg-cyan-900/50">
+                        <Badge
+                          variant="secondary"
+                          className="bg-cyan-100 dark:bg-cyan-900/50"
+                        >
                           <span className="w-2 h-2 rounded-full bg-cyan-600 mr-2" />
                           Forecast
                         </Badge>
@@ -798,13 +1080,33 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient id="colorO3Historical" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="colorO3Historical"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.5} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
+                      <stop
+                        offset="95%"
+                        stopColor="#3b82f6"
+                        stopOpacity={0.1}
+                      />
                     </linearGradient>
-                    <linearGradient id="colorO3Actual" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="colorO3Actual"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="5%" stopColor="#22c55e" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#22c55e" stopOpacity={0.05} />
+                      <stop
+                        offset="95%"
+                        stopColor="#22c55e"
+                        stopOpacity={0.05}
+                      />
                     </linearGradient>
                     <linearGradient
                       id="colorO3Forecast"
@@ -814,7 +1116,11 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       y2="1"
                     >
                       <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.05} />
+                      <stop
+                        offset="95%"
+                        stopColor="#06b6d4"
+                        stopOpacity={0.05}
+                      />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -822,8 +1128,16 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                     className="stroke-muted/30"
                   />
                   <XAxis
-                    dataKey="rawTimestamp"
-                    tickFormatter={(val) => `${val}h`}
+                    dataKey={viewMode === "daily" ? "date" : "rawTimestamp"}
+                    tickFormatter={(val) => {
+                      if (viewMode === "daily" && typeof val === "string") {
+                        const timePart = val.split(" ")[1];
+                        if (timePart) {
+                          return timePart.substring(0, 5);
+                        }
+                      }
+                      return `${val}h`;
+                    }}
                     tick={{ fontSize: 11 }}
                     stroke="hsl(var(--muted-foreground))"
                   />
@@ -845,15 +1159,24 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       boxShadow: "0 4px 12px -1px rgb(0 0 0 / 0.15)",
                       padding: "12px",
                     }}
-                    labelFormatter={(val) => `Hour ${val}`}
+                    labelFormatter={(val) => {
+                      if (viewMode === "daily" && typeof val === "string") {
+                        const timePart = val.split(" ")[1];
+                        if (timePart) {
+                          return `Time: ${timePart.substring(0, 5)}`;
+                        }
+                      }
+                      return `Hour ${val}`;
+                    }}
                     formatter={(value: any, name: string) => {
-                      if (value === null || value === undefined) return ['-', name];
+                      if (value === null || value === undefined)
+                        return ["-", name];
                       return [`${Number(value).toFixed(2)} µg/m³`, name];
                     }}
                     cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 2 }}
                   />
                   <Legend wrapperStyle={{ paddingTop: "20px" }} />
-                  {historicalData.length > 0 && (
+                  {viewMode === "full" && historicalData.length > 0 && (
                     <ReferenceLine
                       x={
                         historicalData[historicalData.length - 1]?.rawTimestamp
@@ -920,41 +1243,79 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="w-5 h-5 text-purple-500" />
                   Nitrogen Dioxide (NO2) Levels
+                  {viewMode === "daily" && selectedDate && (
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      {selectedDate.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </Badge>
+                  )}
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  {no2ViewMode === "actual-forecast" ? "Actual vs Forecast comparison" : "Historical vs Forecast comparison"} (µg/m³)
+                  {viewMode === "daily" && selectedDate
+                    ? `24-hour data for ${selectedDate.toLocaleDateString(
+                        "en-US",
+                        { weekday: "long", month: "long", day: "numeric" }
+                      )}`
+                    : no2ViewMode === "actual-forecast"
+                    ? "Actual vs Forecast comparison"
+                    : "Historical vs Forecast comparison"}{" "}
+                  (µg/m³)
                 </CardDescription>
               </div>
               <div className="flex items-center gap-4">
-                <Select value={no2ViewMode} onValueChange={(val: "actual-forecast" | "historical-forecast") => setNo2ViewMode(val)}>
+                <Select
+                  value={no2ViewMode}
+                  onValueChange={(
+                    val: "actual-forecast" | "historical-forecast"
+                  ) => setNo2ViewMode(val)}
+                >
                   <SelectTrigger className="w-[200px] bg-white dark:bg-slate-900">
                     <SelectValue placeholder="Select view" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="historical-forecast">Historical vs Forecast</SelectItem>
-                    <SelectItem value="actual-forecast">Actual vs Forecast</SelectItem>
+                    <SelectItem value="historical-forecast">
+                      Historical vs Forecast
+                    </SelectItem>
+                    <SelectItem value="actual-forecast">
+                      Actual vs Forecast
+                    </SelectItem>
                   </SelectContent>
                 </Select>
                 {stats && (
                   <div className="flex gap-2">
                     {no2ViewMode === "historical-forecast" ? (
                       <>
-                        <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-900/50">
+                        <Badge
+                          variant="secondary"
+                          className="bg-purple-100 dark:bg-purple-900/50"
+                        >
                           <span className="w-2 h-2 rounded-full bg-purple-600 mr-2" />
                           Historical
                         </Badge>
-                        <Badge variant="secondary" className="bg-pink-100 dark:bg-pink-900/50">
+                        <Badge
+                          variant="secondary"
+                          className="bg-pink-100 dark:bg-pink-900/50"
+                        >
                           <span className="w-2 h-2 rounded-full bg-pink-600 mr-2" />
                           Forecast
                         </Badge>
                       </>
                     ) : (
                       <>
-                        <Badge variant="secondary" className="bg-orange-100 dark:bg-orange-900/50">
+                        <Badge
+                          variant="secondary"
+                          className="bg-orange-100 dark:bg-orange-900/50"
+                        >
                           <span className="w-2 h-2 rounded-full bg-orange-500 mr-2" />
                           Actual
                         </Badge>
-                        <Badge variant="secondary" className="bg-pink-100 dark:bg-pink-900/50">
+                        <Badge
+                          variant="secondary"
+                          className="bg-pink-100 dark:bg-pink-900/50"
+                        >
                           <span className="w-2 h-2 rounded-full bg-pink-600 mr-2" />
                           Forecast
                         </Badge>
@@ -982,13 +1343,33 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                   margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                 >
                   <defs>
-                    <linearGradient id="colorNO2Historical" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="colorNO2Historical"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="5%" stopColor="#a855f7" stopOpacity={0.5} />
-                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0.1} />
+                      <stop
+                        offset="95%"
+                        stopColor="#a855f7"
+                        stopOpacity={0.1}
+                      />
                     </linearGradient>
-                    <linearGradient id="colorNO2Actual" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                      id="colorNO2Actual"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
                       <stop offset="5%" stopColor="#f97316" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#f97316" stopOpacity={0.05} />
+                      <stop
+                        offset="95%"
+                        stopColor="#f97316"
+                        stopOpacity={0.05}
+                      />
                     </linearGradient>
                     <linearGradient
                       id="colorNO2Forecast"
@@ -998,7 +1379,11 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       y2="1"
                     >
                       <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#ec4899" stopOpacity={0.05} />
+                      <stop
+                        offset="95%"
+                        stopColor="#ec4899"
+                        stopOpacity={0.05}
+                      />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -1006,8 +1391,16 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                     className="stroke-muted/30"
                   />
                   <XAxis
-                    dataKey="rawTimestamp"
-                    tickFormatter={(val) => `${val}h`}
+                    dataKey={viewMode === "daily" ? "date" : "rawTimestamp"}
+                    tickFormatter={(val) => {
+                      if (viewMode === "daily" && typeof val === "string") {
+                        const timePart = val.split(" ")[1];
+                        if (timePart) {
+                          return timePart.substring(0, 5);
+                        }
+                      }
+                      return `${val}h`;
+                    }}
                     tick={{ fontSize: 11 }}
                     stroke="hsl(var(--muted-foreground))"
                   />
@@ -1029,15 +1422,24 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                       boxShadow: "0 4px 12px -1px rgb(0 0 0 / 0.15)",
                       padding: "12px",
                     }}
-                    labelFormatter={(val) => `Hour ${val}`}
+                    labelFormatter={(val) => {
+                      if (viewMode === "daily" && typeof val === "string") {
+                        const timePart = val.split(" ")[1];
+                        if (timePart) {
+                          return `Time: ${timePart.substring(0, 5)}`;
+                        }
+                      }
+                      return `Hour ${val}`;
+                    }}
                     formatter={(value: any, name: string) => {
-                      if (value === null || value === undefined) return ['-', name];
+                      if (value === null || value === undefined)
+                        return ["-", name];
                       return [`${Number(value).toFixed(2)} µg/m³`, name];
                     }}
                     cursor={{ stroke: "hsl(var(--primary))", strokeWidth: 2 }}
                   />
                   <Legend wrapperStyle={{ paddingTop: "20px" }} />
-                  {historicalData.length > 0 && (
+                  {viewMode === "full" && historicalData.length > 0 && (
                     <ReferenceLine
                       x={
                         historicalData[historicalData.length - 1]?.rawTimestamp
@@ -1116,7 +1518,9 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
                 <div className="flex items-center gap-3">
                   <CalendarClock className="w-5 h-5 text-primary" />
                   <div>
-                    <p className="text-base text-muted-foreground">Time Point</p>
+                    <p className="text-base text-muted-foreground">
+                      Time Point
+                    </p>
                     <p className="font-semibold text-xl">
                       {hoveredData.timestamp}
                     </p>

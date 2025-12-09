@@ -139,9 +139,9 @@ export const Hero: React.FC = () => {
                 <Button variant="primary" size="lg" withArrow className="shadow-xl shadow-teal-900/10 font-bold tracking-wide">
                   View Forecast
                 </Button>  </Link>
-                           <Link href="/dashboard/api-keys">
+                           <Link href="/how-it-works">
                 <Button variant="outline" size="lg" className="bg-white hover:bg-slate-50 border-slate-300 font-semibold tracking-wide">
-                  Access API                 </Button>  </Link>
+                  How It Works              </Button>  </Link>
               </div>
             </FadeIn>
           </div>

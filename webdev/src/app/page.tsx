@@ -10,7 +10,6 @@ import {
   ModelReliabilityMetrics,
   HowItWorks,
   TechStackStrip,
-  DownloadsSection,
 } from "@/components/Features";
 import { MapViz } from "@/components/MapViz";
 import { Footer } from "@/components/Footer";
@@ -61,9 +60,7 @@ export default function Home() {
         </section>
 
         {/* 8. Resources (Light) */}
-        <section className="scroll-mt-20">
-          <DownloadsSection />
-        </section>
+        
       </main>
 
       <Footer />

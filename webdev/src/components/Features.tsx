@@ -331,86 +331,6 @@ export const TechStackStrip: React.FC = () => {
   );
 };
 
-export const DownloadsSection: React.FC = () => {
-  return (
-    <Section className="bg-slate-50 py-24 relative overflow-hidden border-t border-slate-200">
-      {/* Texture - More evident */}
-      <div
-        className="absolute inset-0 opacity-[0.06]"
-        style={{
-          backgroundImage: "radial-gradient(#0f172a 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
-        }}
-      ></div>
-      <div className="absolute -left-20 top-1/2 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl pointer-events-none"></div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12 border-b border-slate-200 pb-8">
-          <div>
-            <h3 className="text-2xl font-bold text-slate-900 mb-2">
-              References & Documentation
-            </h3>
-            <p className="text-slate-500">
-              Resources for policy makers, researchers, and developers.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-6 md:mt-0 bg-white hover:bg-slate-100"
-          >
-            View Full Archive
-          </Button>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            {
-              title: "Forecasting with spatiotemporally",
-              type: "PDF",
-                            desc: "Ensemble ML Architecture Whitepaper",
-            },
-            {
-              title: "Annual Impact Report 2024",
-              type: "PDF",
-              size: "5.1 MB",
-              desc: "National pollution reduction statistics",
-            },
-            {
-              title: "Data Dictionary (JSON)",
-              type: "API",
-              size: "Live",
-              desc: "Schema definition for Business API",
-            },
-          ].map((doc, i) => (
-            <div
-              key={i}
-              className="group bg-white border border-slate-200 hover:border-teal-400 p-6 rounded-2xl transition-all duration-300 hover:shadow-lg cursor-pointer"
-            >
-              <div className="flex justify-between items-start mb-5">
-                <div className="p-2.5 bg-slate-50 rounded-lg text-teal-600 group-hover:text-white group-hover:bg-teal-600 transition-colors border border-slate-100">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <Download className="w-4 h-4 text-slate-400 group-hover:text-teal-600 transition-colors" />
-              </div>
-              <h4 className="font-bold text-slate-900 mb-1.5 transition-colors">
-                {doc.title}
-              </h4>
-              <p className="text-xs text-slate-500 mb-5">{doc.desc}</p>
-              <div className="flex items-center gap-2">
-                <Badge color="bg-slate-100 text-slate-600 border border-slate-200">
-                  {doc.type}
-                </Badge>
-                <span className="text-[10px] text-slate-500">{doc.size}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </Section>
-  );
-};
-
 export const PollutantExplainer: React.FC = () => {
   return (
     <Section className="bg-slate-50 py-24 border-y border-slate-200 relative overflow-hidden">
@@ -619,10 +539,7 @@ export const RoleBasedAccess: React.FC = () => {
                   {role.desc}
                 </p>
 
-                <div className="flex items-center text-xs font-bold text-slate-500 group-hover:text-teal-400 transition-colors cursor-pointer pt-4 border-t border-slate-800">
-                  ACCESS MODULE{" "}
-                  <ArrowRight className="w-3 h-3 ml-2 transition-transform group-hover:translate-x-1" />
-                </div>
+                
               </div>
             </FadeIn>
           ))}

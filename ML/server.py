@@ -150,8 +150,11 @@ def sanitize_list(data_list: List[Any]) -> List[Any]:
 def format_data_response(df, predictions, error_metrics=False):
     response = {
         "dates": [],
-        "historical": {},
-        "forecast": {},
+        "actual": {},      # Ground truth values (for comparison)
+        "predicted": {},   # Model predictions
+        "historical": {},  # Backward compatibility
+        "forecast": {},    # Backward compatibility
+        "comparison": {},  # Side-by-side for easy plotting
         "metadata": {"row_count": len(df)}
     }
 
@@ -167,31 +170,70 @@ def format_data_response(df, predictions, error_metrics=False):
     else:
         response["dates"] = list(range(len(df)))
 
-    # Historical
+    # Actual/Ground Truth values (from input data)
     for col in ["O3_target", "NO2_target"]:
         if col in df.columns:
-            response["historical"][col] = sanitize_list(df[col].tolist())
+            actual_values = sanitize_list(df[col].tolist())
+            response["actual"][col] = actual_values
+            response["historical"][col] = actual_values  # Backward compatibility
     
-    # Forecast
+    # Predicted values (from model)
     for col, preds in predictions.items():
-        response["forecast"][col] = sanitize_list(preds)
+        pred_values = sanitize_list(preds)
+        response["predicted"][col] = pred_values
+        response["forecast"][col] = pred_values  # Backward compatibility
 
-    # Errors
+    # Comparison data (for easy side-by-side plotting)
+    for pollutant in ["O3", "NO2"]:
+        target_col = f"{pollutant}_target"
+        if target_col in df.columns and target_col in predictions:
+            actual_vals = response["actual"].get(target_col, [])
+            pred_vals = response["predicted"].get(target_col, [])
+            response["comparison"][pollutant] = {
+                "actual": actual_vals,
+                "predicted": pred_vals,
+                "dates": response["dates"]
+            }
+
+    # Error Metrics
     if error_metrics:
         errors = {}
+        metrics = {}
         for col in ["O3", "NO2"]:
             target_col = f"{col}_target"
-            pred_col = f"{col}_target"
-            if target_col in df.columns and pred_col in predictions:
+            if target_col in df.columns and target_col in predictions:
                 try:
-                    actual = np.array(df[target_col].fillna(0))
-                    pred = np.array(predictions[pred_col])
+                    actual = np.array(df[target_col].fillna(np.nan))
+                    pred = np.array(predictions[target_col])
                     pred = np.array([np.nan if x is None else x for x in pred])
+                    
+                    # Point-wise absolute error
                     abs_err = np.abs(pred - actual)
                     errors[f"{col}_absolute_error"] = sanitize_list(abs_err.tolist())
-                except:
-                    pass
+                    
+                    # Summary metrics (ignoring NaN)
+                    mask = ~(np.isnan(actual) | np.isnan(pred))
+                    if mask.sum() > 0:
+                        actual_valid = actual[mask]
+                        pred_valid = pred[mask]
+                        mae = np.mean(np.abs(pred_valid - actual_valid))
+                        rmse = np.sqrt(np.mean((pred_valid - actual_valid) ** 2))
+                        
+                        # R² score
+                        ss_res = np.sum((actual_valid - pred_valid) ** 2)
+                        ss_tot = np.sum((actual_valid - np.mean(actual_valid)) ** 2)
+                        r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
+                        
+                        metrics[col] = {
+                            "mae": round(float(mae), 3),
+                            "rmse": round(float(rmse), 3),
+                            "r2": round(float(r2), 4),
+                            "valid_points": int(mask.sum())
+                        }
+                except Exception as e:
+                    logger.warning(f"Error computing metrics for {col}: {e}")
         response["errors"] = errors
+        response["metrics"] = metrics
 
     return response
 
@@ -464,9 +506,16 @@ async def run_extreme_logic(df, site_id, o3_thresh, no2_thresh):
 @app.post("/predict/")
 async def predict_simple(input_data: JsonInput):
     df = pd.DataFrame(input_data.data)
-    # Just run pipeline, extract preds
+    # Run pipeline and get full response with actual vs predicted
     res = await run_forecast_pipeline(df, input_data.site_id)
-    return {"site_id": input_data.site_id, "predictions": res["forecast"]}
+    return {
+        "site_id": input_data.site_id,
+        "predictions": res["forecast"],
+        "actual": res.get("actual", {}),
+        "comparison": res.get("comparison", {}),
+        "metrics": res.get("metrics", {}),
+        "dates": res.get("dates", [])
+    }
 
 @app.websocket("/ws/predict/")
 async def websocket_predict(websocket: WebSocket):
@@ -478,9 +527,19 @@ async def websocket_predict(websocket: WebSocket):
             df = pd.DataFrame(input_data["data"])
             
             # Run full pipeline to ensure lags are handled correctly
-            # We assume realtime data is sequential
             res = await run_forecast_pipeline(df, input_data.get("site_id", "1"))
-            await websocket.send_text(json.dumps(res["forecast"]))
+            
+            # Send comprehensive response with actual vs predicted for plotting
+            ws_response = {
+                "forecast": res.get("forecast", {}),
+                "actual": res.get("actual", {}),
+                "predicted": res.get("predicted", {}),
+                "comparison": res.get("comparison", {}),
+                "dates": res.get("dates", []),
+                "metrics": res.get("metrics", {}),
+                "errors": res.get("errors", {})
+            }
+            await websocket.send_text(json.dumps(ws_response))
     except WebSocketDisconnect:
         print("WebSocket disconnected")
 

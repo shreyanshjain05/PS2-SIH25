@@ -153,6 +153,7 @@ def format_data_response(df, predictions, error_metrics=False):
         "actual": {},
         "predicted": {},
         "forecast": {},
+        "historical": {},
         "metrics": {}
     }
 
@@ -172,6 +173,7 @@ def format_data_response(df, predictions, error_metrics=False):
     for col in ["O3_target", "NO2_target"]:
         if col in df.columns:
             response["actual"][col] = sanitize_list(df[col].tolist())
+            response["historical"][col] = sanitize_list(df[col].tolist())
     
     # Predicted & Forecast
     for col, preds in predictions.items():
@@ -483,6 +485,7 @@ async def predict_simple(input_data: JsonInput):
         "site_id": input_data.site_id,
         "dates": res.get("dates", []),
         "actual": res.get("actual", {}),
+        "historical": res.get("historical", {}),
         "predicted": res.get("predicted", {}),
         "forecast": res.get("forecast", {}),
         "metrics": res.get("metrics", {})
@@ -500,10 +503,11 @@ async def websocket_predict(websocket: WebSocket):
             # Run full pipeline to ensure lags are handled correctly
             res = await run_forecast_pipeline(df, input_data.get("site_id", "1"))
             
-            # Send response with actual, predicted, forecast, and metrics
+            # Send response with actual, historical, predicted, forecast, and metrics
             ws_response = {
                 "dates": res.get("dates", []),
                 "actual": res.get("actual", {}),
+                "historical": res.get("historical", {}),
                 "predicted": res.get("predicted", {}),
                 "forecast": res.get("forecast", {}),
                 "metrics": res.get("metrics", {})

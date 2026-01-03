@@ -12,6 +12,13 @@ This system provides real-time and forecasted air quality analytics for specific
 - **API First**: FastAPI backend serving predictions and historical data.
 - **Containerized**: Fully dockerized for consistent deployment.
 
+
+
+## 🎥 Demo
+Do Check our demo for best understanding of our work!
+
+https://drive.google.com/drive/folders/14cRGK1E01P8AqV4CJVEGJ45lSxQIex2J
+
 ## 🛠️ Tech Stack
 
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS, Shadcn UI, Recharts.

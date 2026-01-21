@@ -45,7 +45,7 @@ export default function Home() {
         </section>
         
 <section className="scroll-mt-20">
-  <Slider initial={75} />
+  <Slider />
 </section>
     
 

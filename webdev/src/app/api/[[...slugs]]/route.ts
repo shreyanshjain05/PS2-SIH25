@@ -90,24 +90,30 @@ const aqiService = new Elysia({ prefix: '/aqi' })
     })
     .post('/forecast/timeseries', async ({ body }: { body: any }) => {
       try {
-        // Load test payload from file
-        const fs = await import('fs/promises');
-        const path = await import('path');
-        // In production (Docker), file is in /app/test_payload_2024.json
-        // In development, file is in ../ML/test_payload_2024.json
-        const testPayloadPath = process.env.NODE_ENV === 'production' 
-          ? path.join(process.cwd(), 'test_payload_2024.json')
-          : path.join(process.cwd(), '..', 'ML', 'test_payload_2024.json');
-        const testPayloadContent = await fs.readFile(testPayloadPath, 'utf-8');
-        const testPayload = JSON.parse(testPayloadContent);
+        const siteId = body.site_id;
+        const forecastDate = body.forecast_date; // YYYY-MM-DD format
         
-        console.log('Using test payload with', testPayload.data.length, 'data points');
+        if (!siteId || !forecastDate) {
+          return { error: 'site_id and forecast_date are required' };
+        }
         
-        const res = await fetch(`${ML_SERVICE_URL}/plots/timeseries/json/`, {
+        console.log(`Calling ML service /forecast/by-date/ for site ${siteId}, date ${forecastDate}`);
+        
+        // Call the ML service's new endpoint that handles loading CSV data
+        const res = await fetch(`${ML_SERVICE_URL}/forecast/by-date/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(testPayload)
+          body: JSON.stringify({
+            site_id: siteId,
+            forecast_date: forecastDate
+          })
         });
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({ detail: 'Unknown error' }));
+          console.error('ML Service Error:', errorData);
+          return { error: errorData.detail || 'Forecast failed' };
+        }
         
         const mlData = await res.json();
         
@@ -182,7 +188,8 @@ const aqiService = new Elysia({ prefix: '/aqi' })
     }, {
       body: t.Object({
         site_id: t.String(),
-        data: t.Array(t.Any()),
+        forecast_date: t.String(),
+        data: t.Optional(t.Array(t.Any())),
         historical_points: t.Optional(t.Number())
       })
     });

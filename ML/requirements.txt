@@ -5,3 +5,5 @@ scikit-learn
 numpy 
 xgboost
 matplotlib
+lightgbm
+pyarrow

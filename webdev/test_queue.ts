@@ -2,7 +2,7 @@ import { alertQueue } from "./src/lib/queue";
 
 async function main() {
   console.log("Adding job to queue...");
-  await alertQueue.add("send-alert", {
+  await alertQueue?.add("send-alert", {
     alertId: "test-id",
     title: "Test Alert",
     message: "This is a test",

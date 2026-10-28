@@ -38,7 +38,7 @@ export async function sendAlert(formData: FormData) {
   });
 
   // Add to queue
-  await alertQueue.add("send-alert", {
+  await alertQueue?.add("send-alert", {
     alertId: alert.id,
     title,
     message,

@@ -24,6 +24,6 @@ export const govService = new Elysia({ prefix: "/gov" })
         };
     })
     .post("/alert", async ({ headers, body }: { headers: Record<string, string | undefined>, body: any }) => {
-        await alertQueue.add("msg", body);
+        await alertQueue?.add("msg", body);
         return { status: "Alert queued", data: body };
     });

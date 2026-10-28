@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
+import { getForecastSites } from "@/lib/forecast-data";
 
 // ML Service URL
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:8000";
@@ -166,9 +167,7 @@ export const publicApiService = new Elysia({ prefix: "/v1" })
     }
 
     try {
-      const res = await fetch(`${ML_SERVICE_URL}/sites/`);
-      if (!res.ok) throw new Error("Failed to fetch sites from ML service");
-      const sites = await res.json();
+      const sites = getForecastSites();
 
       return {
         data: sites,

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "prisma generate --schema=./prisma/schema.prisma && prisma generate --schema=./src/services/citizen/prisma/schema.prisma && prisma generate --schema=./src/services/business/prisma/schema.prisma && prisma generate --schema=./src/services/gov/prisma/schema.prisma && next build",
     "start": "next start",
     "worker:alert": "bun src/workers/alert.ts"
   },
@@ -37,14 +38,14 @@
     "framer-motion": "^12.23.25",
     "ioredis": "^5.8.2",
     "lucide-react": "^0.556.0",
-    "next": "16.0.6",
+    "next": "16.0.11",
     "nodemailer": "^7.0.11",
     "pg": "^8.16.3",
     "prisma": "^7.1.0",
     "razorpay": "^2.9.6",
-    "react": "19.2.0",
+    "react": "19.2.9",
     "react-day-picker": "^9.12.0",
-    "react-dom": "19.2.0",
+    "react-dom": "19.2.9",
     "recharts": "^3.5.1",
     "tailwind-merge": "^3.4.0"
   },

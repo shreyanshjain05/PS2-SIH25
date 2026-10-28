@@ -7,6 +7,7 @@ import { govService } from "@/services/gov";
 import { publicApiService } from "@/services/public-api";
 import { prismaAuth } from "@/lib/db/auth";
 import { logger } from "@/lib/logger";
+import { getForecastSites, getForecastTimeseries } from "@/lib/forecast-data";
 
 // ML Service URL - use env var to support both local and Docker
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
@@ -23,13 +24,12 @@ const aqiService = new Elysia({ prefix: '/aqi' })
         }
         // No credit deduction for internal endpoints
     })
-    .get('/sites', async () => {
+    .get('/sites', () => {
       try {
-        const res = await fetch(`${ML_SERVICE_URL}/sites/`);
-        if (!res.ok) throw new Error('Failed to fetch sites');
-        return await res.json();
+        return getForecastSites();
       } catch (error) {
-        return { error: 'Failed to connect to AQI server' };
+        logger.error('Failed to load forecast sites', { error: String(error) });
+        return { error: 'Failed to load sites' };
       }
     })
     .post('/sample-data', async ({ body }: { body: any }) => {
@@ -88,101 +88,17 @@ const aqiService = new Elysia({ prefix: '/aqi' })
         data: t.Array(t.Any())
       })
     })
-    .post('/forecast/timeseries', async ({ body }: { body: any }) => {
+    .post('/forecast/timeseries', ({ body }: { body: any }) => {
+      // Served from precomputed model output (ML/aq_model/export.py)
+      const siteId = body.site_id;
+      const forecastDate = body.forecast_date; // YYYY-MM-DD format
+      if (!siteId || !forecastDate) {
+        return { error: 'site_id and forecast_date are required' };
+      }
       try {
-        const siteId = body.site_id;
-        const forecastDate = body.forecast_date; // YYYY-MM-DD format
-        
-        if (!siteId || !forecastDate) {
-          return { error: 'site_id and forecast_date are required' };
-        }
-        
-        console.log(`Calling ML service /forecast/by-date/ for site ${siteId}, date ${forecastDate}`);
-        
-        // Call the ML service's new endpoint that handles loading CSV data
-        const res = await fetch(`${ML_SERVICE_URL}/forecast/by-date/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            site_id: siteId,
-            forecast_date: forecastDate
-          })
-        });
-        
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ detail: 'Unknown error' }));
-          console.error('ML Service Error:', errorData);
-          return { error: errorData.detail || 'Forecast failed' };
-        }
-        
-        const mlData = await res.json();
-        
-        console.log('ML Service Response keys:', Object.keys(mlData));
-        console.log('Has dates?', 'dates' in mlData);
-        console.log('Has actual?', 'actual' in mlData);
-        console.log('Has predicted?', 'predicted' in mlData);
-        console.log('Has forecast?', 'forecast' in mlData);
-        console.log('Has metrics?', 'metrics' in mlData);
-        
-        // Pass through the new ML response format directly to frontend
-        // New format: dates, actual, predicted, forecast, metrics
-        if (mlData && mlData.dates) {
-            // Return the ML response directly - frontend now handles this format
-            console.log('Passing ML response directly:', {
-                dates_length: mlData.dates?.length,
-                actual_O3_length: mlData.actual?.O3_target?.length,
-                actual_NO2_length: mlData.actual?.NO2_target?.length,
-                predicted_O3_length: mlData.predicted?.O3_target?.length,
-                predicted_NO2_length: mlData.predicted?.NO2_target?.length,
-                forecast_O3_length: mlData.forecast?.O3_target?.length,
-                forecast_NO2_length: mlData.forecast?.NO2_target?.length,
-                historical_dates_length: mlData.historical?.dates?.length,
-                metrics: mlData.metrics
-            });
-            
-            // Build historical object from actual data where forecast is null
-            // Historical = data points before forecast starts
-            const dates = mlData.dates || [];
-            const actualO3 = mlData.actual?.O3_target || [];
-            const actualNO2 = mlData.actual?.NO2_target || [];
-            const forecastO3 = mlData.forecast?.O3_target || [];
-            const forecastNO2 = mlData.forecast?.NO2_target || [];
-            
-            const historical = {
-                dates: [] as string[],
-                O3_target: [] as (number | null)[],
-                NO2_target: [] as (number | null)[]
-            };
-            
-            // Historical points are where forecast is null
-            for (let i = 0; i < dates.length; i++) {
-                const hasForecast = forecastO3[i] !== null && forecastO3[i] !== undefined;
-                if (!hasForecast) {
-                    historical.dates.push(dates[i]);
-                    historical.O3_target.push(actualO3[i]);
-                    historical.NO2_target.push(actualNO2[i]);
-                }
-            }
-            
-            console.log('Built historical data:', {
-                historical_dates_length: historical.dates.length,
-                historical_O3_length: historical.O3_target.length,
-                historical_NO2_length: historical.NO2_target.length
-            });
-            
-            return {
-                dates: mlData.dates,
-                historical: historical,
-                actual: mlData.actual,
-                predicted: mlData.predicted,
-                forecast: mlData.forecast,
-                metrics: mlData.metrics
-            };
-        }
-        
-        return mlData;
+        return getForecastTimeseries(siteId, forecastDate);
       } catch (error) {
-        console.error('ML Service Error:', error);
+        logger.error('Failed to load forecast', { error: String(error) });
         return { error: 'Forecast failed' };
       }
     }, {

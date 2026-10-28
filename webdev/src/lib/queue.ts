@@ -5,6 +5,8 @@ import IORedis from "ioredis";
 const connection = new IORedis({
     host: process.env.REDIS_HOST || "localhost",
     port: parseInt(process.env.REDIS_PORT || "6379"),
+    password: process.env.REDIS_PASSWORD,
+    family: 0, // resolve IPv4 and IPv6 (Railway private network is IPv6)
     maxRetriesPerRequest: null,
 });
 

@@ -9,7 +9,7 @@ max_attempts=30
 attempt=0
 
 while [ $attempt -lt $max_attempts ]; do
-  if nc -z db 5432 2>/dev/null; then
+  if nc -z "${DB_HOST:-db}" "${DB_PORT:-5432}" 2>/dev/null; then
     echo "✅ Database is ready!"
     break
   fi

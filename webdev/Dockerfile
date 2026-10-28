@@ -65,6 +65,10 @@ COPY --from=builder /app/next.config.ts ./
 # Copy test payload for ML predictions
 COPY --from=builder /app/test_payload_2024.json ./test_payload_2024.json
 
+# Site input CSVs (compose mounts the full ML data dir over this path)
+COPY --from=builder /app/ml_data ./ml_data
+ENV ML_DATA_PATH=/app/ml_data
+
 # Helper script for migrations
 COPY docker-entrypoint.sh /usr/local/bin/
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh

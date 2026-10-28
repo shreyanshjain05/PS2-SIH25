@@ -1,6 +1,5 @@
 fastapi[all]
 uvicorn 
-torch 
 pandas 
 scikit-learn 
 numpy 

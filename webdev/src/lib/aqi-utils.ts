@@ -117,3 +117,17 @@ export function calculatePollutionScore(o3: number, no2: number) {
     },
   };
 }
+
+export const CATEGORY_RANK: Record<string, number> = {
+  Low: 0,
+  Moderate: 1,
+  High: 2,
+  "Very High": 3,
+  Severe: 4,
+};
+
+// Orders results by category first, then raw concentration, so a High NO2
+// hour outranks a Moderate O3 hour with a larger number
+export function severityKey(result: ReturnType<typeof calculatePollutionScore>) {
+  return (CATEGORY_RANK[result.category] ?? 0) * 10_000 + result.score;
+}

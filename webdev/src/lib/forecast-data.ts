@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { CATEGORY_RANK, calculatePollutionScore } from "@/lib/aqi-utils";
 
 // Precomputed by ML/aq_model/export.py. Bundled into the API function via
 // outputFileTracingIncludes in next.config.ts.
@@ -64,6 +65,51 @@ function previousDate(date: string): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
+}
+
+export interface AlertHotspot {
+  date: string;
+  kind: "backtest" | "forecast";
+  high_sites: string[]; // sites whose worst predicted hour is High or worse
+  flagged_sites: number; // sites at Moderate or worse
+}
+
+let hotspotCache: AlertHotspot[] | null = null;
+
+/**
+ * Dates ranked by how many sites the model predicts at High or worse, using
+ * the same thresholds the gov dashboard applies (calculatePollutionScore).
+ */
+export function getAlertHotspots(limit = 10): AlertHotspot[] {
+  if (!hotspotCache) {
+    const byDate = new Map<string, AlertHotspot>();
+    for (const { id } of getForecastSites()) {
+      const site = getSiteFile(id)!;
+      for (const [date, day] of Object.entries(site.days)) {
+        let worst = 0;
+        for (let h = 0; h < 24; h++) {
+          const o3 = day.O3_pred[h];
+          const no2 = day.NO2_pred[h];
+          if (o3 === null || no2 === null) continue;
+          worst = Math.max(worst, CATEGORY_RANK[calculatePollutionScore(o3, no2).category] ?? 0);
+        }
+        const entry = byDate.get(date) ?? { date, kind: day.kind, high_sites: [], flagged_sites: 0 };
+        if (worst >= CATEGORY_RANK.High) entry.high_sites.push(id);
+        if (worst >= CATEGORY_RANK.Moderate) entry.flagged_sites++;
+        // A date counts as a forecast if any site's value there is a true forecast
+        if (day.kind === "forecast") entry.kind = "forecast";
+        byDate.set(date, entry);
+      }
+    }
+    hotspotCache = [...byDate.values()]
+      .filter((h) => h.high_sites.length > 0)
+      .sort((a, b) =>
+        b.high_sites.length - a.high_sites.length ||
+        b.flagged_sites - a.flagged_sites ||
+        b.date.localeCompare(a.date)
+      );
+  }
+  return hotspotCache.slice(0, limit);
 }
 
 export const MAX_RANGE_DAYS = 31;

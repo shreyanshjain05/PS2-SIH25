@@ -59,15 +59,18 @@ export const MONITORING_SITES: MonitoringSite[] = [
   },
 ];
 
+// Accepts "1", "1.0" or "site_1"
+function findSite(siteId: string) {
+  const num = siteId.replace(/^site_/, "").replace(/\.0$/, "");
+  return MONITORING_SITES.find((s) => s.id.replace(/\.0$/, "") === num);
+}
+
 export function getSiteName(siteId: string): string {
-  // Handle both "site_1" and "1" formats
-  const normalizedId = siteId.startsWith("site_") ? siteId : `site_${siteId}`;
-  const site = MONITORING_SITES.find((s) => s.id === normalizedId);
+  const site = findSite(siteId);
   return site ? site.name : siteId; // Fallback to ID if not found
 }
 
 export function getSiteCoordinates(siteId: string) {
-  const normalizedId = siteId.startsWith("site_") ? siteId : `site_${siteId}`;
-  const site = MONITORING_SITES.find((s) => s.id === normalizedId);
+  const site = findSite(siteId);
   return site ? { lat: site.lat, lon: site.lon } : null;
 }

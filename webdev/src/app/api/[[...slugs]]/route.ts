@@ -7,7 +7,7 @@ import { govService } from "@/services/gov";
 import { publicApiService } from "@/services/public-api";
 import { prismaAuth } from "@/lib/db/auth";
 import { logger } from "@/lib/logger";
-import { getForecastSites, getForecastTimeseries } from "@/lib/forecast-data";
+import { getAlertHotspots, getForecastSites, getForecastTimeseries } from "@/lib/forecast-data";
 
 // ML Service URL - use env var to support both local and Docker
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || 'http://localhost:8000';
@@ -30,6 +30,16 @@ const aqiService = new Elysia({ prefix: '/aqi' })
       } catch (error) {
         logger.error('Failed to load forecast sites', { error: String(error) });
         return { error: 'Failed to load sites' };
+      }
+    })
+    // Dates where the model predicts the most sites at High or worse
+    .get('/alerts/hotspots', ({ query }: { query: { limit?: string } }) => {
+      try {
+        const limit = Math.min(Math.max(parseInt(query.limit ?? '10') || 10, 1), 50);
+        return getAlertHotspots(limit);
+      } catch (error) {
+        logger.error('Failed to compute alert hotspots', { error: String(error) });
+        return { error: 'Failed to load alert hotspots' };
       }
     })
     .post('/sample-data', async ({ body }: { body: any }) => {

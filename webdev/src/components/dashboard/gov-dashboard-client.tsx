@@ -1,6 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { api } from "@/lib/eden";
 import {
   Card,
   CardContent,
@@ -30,11 +38,12 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
+  Radar,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getSiteName } from "@/lib/sites";
-import { calculatePollutionScore } from "@/lib/aqi-utils";
+import { calculatePollutionScore, severityKey } from "@/lib/aqi-utils";
 import { sendAlert } from "@/app/gov-dashboard/actions";
 
 interface GovDashboardClientProps {
@@ -77,8 +86,8 @@ export default function GovDashboardClient({
       
       const score = calculatePollutionScore(o3, no2);
 
-      if (score.score > maxSeverity) {
-        maxSeverity = score.score;
+      if (severityKey(score) > maxSeverity) {
+        maxSeverity = severityKey(score);
         worstCase = {
           o3,
           no2,
@@ -153,6 +162,49 @@ export default function GovDashboardClient({
       setCriticalRegions((prev) => prev.filter((r) => r.region !== siteId));
     }
   };
+
+  // Model scan: run the precomputed forecast for every site on a date and
+  // feed each result through the same alert logic as a manual forecast
+  const [hotspots, setHotspots] = useState<
+    { date: string; kind: string; high_sites: string[]; flagged_sites: number }[]
+  >([]);
+  const [scanDate, setScanDate] = useState<string>("");
+  const [scanning, setScanning] = useState(false);
+
+  const scanForDate = async (date: string) => {
+    setScanDate(date);
+    setScanning(true);
+    setCriticalRegions([]);
+    setAlertedRegions(new Set());
+    try {
+      const sites = ["1", "2", "3", "4", "5", "6", "7"];
+      const results = await Promise.all(
+        sites.map((site_id) =>
+          api.api.aqi.forecast.timeseries.post({ site_id, forecast_date: date })
+        )
+      );
+      results.forEach(({ data, error }, i) => {
+        if (data && !error && !("error" in (data as any))) {
+          handleForecastUpdate(data as unknown as AqiData, sites[i]);
+        }
+      });
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await api.api.aqi.alerts.hotspots.get({
+        query: { limit: "10" },
+      });
+      if (!error && Array.isArray(data) && data.length > 0) {
+        setHotspots(data);
+        scanForDate(data[0].date);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="container mx-auto p-6 space-y-8 bg-slate-50 min-h-screen">
@@ -276,6 +328,36 @@ export default function GovDashboardClient({
 
         {/* Alerts Tab */}
         <TabsContent value="alerts" className="space-y-4">
+          {hotspots.length > 0 && (
+            <Card>
+              <CardContent className="flex flex-col md:flex-row md:items-center gap-3 py-4">
+                <div className="flex items-center gap-2 text-sm text-slate-700">
+                  <Radar className="h-4 w-4 text-indigo-500" />
+                  <span>
+                    Model scan across all sites for
+                  </span>
+                </div>
+                <Select value={scanDate} onValueChange={scanForDate}>
+                  <SelectTrigger className="w-full md:w-72 bg-white">
+                    <SelectValue placeholder="Pick a date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hotspots.map((h) => (
+                      <SelectItem key={h.date} value={h.date}>
+                        {h.date} · {h.high_sites.length} sites High
+                        {h.kind === "forecast" ? " · forecast" : " · backtest"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs text-slate-500">
+                  {scanning
+                    ? "Scanning…"
+                    : `${criticalRegions.length} regions flagged. Dates are the ones where the model predicts the most sites at High or worse.`}
+                </span>
+              </CardContent>
+            </Card>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {criticalRegions.map((region: any) => {
               const isAlertSent = alertedRegions.has(region.region);

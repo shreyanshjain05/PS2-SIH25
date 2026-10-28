@@ -165,6 +165,11 @@ export default function AqiDashboard({ onForecastUpdate }: AqiDashboardProps) {
     const fetchSites = async () => {
       const { data, error } = await api.api.aqi.sites.get();
       console.log("Sites API raw response:", { data, error, dataType: typeof data });
+      // Session missing or expired: send the user to sign in instead of an empty picker
+      if (error?.status === 401) {
+        window.location.href = "/sign-in";
+        return;
+      }
       if (data && !error) {
         // API returns array of sites with dates
         // Handle both direct array and wrapped response

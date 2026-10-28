@@ -6,8 +6,11 @@ import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions"
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 
-// Import worker to start it
-import "./workers/alert";
+// Start the alert worker in-process, unless the queue is disabled (e.g. on
+// Vercel, where there's no Redis and it would just retry connecting)
+if (process.env.DISABLE_QUEUE !== "true") {
+  import("./workers/alert");
+}
 
 const sdk = new NodeSDK({
   resource: resourceFromAttributes({

@@ -199,8 +199,14 @@ export default function GovDashboardClient({
         query: { limit: "10" },
       });
       if (!error && Array.isArray(data) && data.length > 0) {
-        setHotspots(data);
-        scanForDate(data[0].date);
+        // Eden turns "YYYY-MM-DD" strings into Date objects (UTC midnight);
+        // convert back so they can be rendered and sent as forecast_date
+        const spots = data.map((h: any) => ({
+          ...h,
+          date: h.date instanceof Date ? h.date.toISOString().slice(0, 10) : String(h.date),
+        }));
+        setHotspots(spots);
+        scanForDate(spots[0].date);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

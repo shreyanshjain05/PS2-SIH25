@@ -25,8 +25,10 @@ export default function SignInPage() {
       email,
       password,
     }, {
-      onSuccess: () => {
-        router.push("/dashboard");
+      onSuccess: (ctx: any) => {
+        // Government users land on the command center, everyone else on the citizen dashboard
+        const role = ctx.data?.user?.role;
+        router.push(role === "GOVT" ? "/gov-dashboard" : "/dashboard");
       },
       onError: (ctx: any) => {
         setError(ctx.error.message);

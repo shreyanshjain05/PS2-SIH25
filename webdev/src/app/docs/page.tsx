@@ -254,6 +254,10 @@ export default function DocsPage() {
                       <Badge variant="secondary">50 credits</Badge>
                     </div>
                     <div className="flex justify-between text-sm">
+                      <span className="text-slate-600">Precomputed Forecasts</span>
+                      <Badge variant="secondary">100 credits</Badge>
+                    </div>
+                    <div className="flex justify-between text-sm">
                       <span className="text-slate-600">Generate Forecast</span>
                       <Badge variant="secondary">100 credits</Badge>
                     </div>
@@ -354,6 +358,41 @@ export default function DocsPage() {
             </TabsContent>
 
             <TabsContent value="forecast" className="space-y-6">
+              <EndpointCard
+                method="GET"
+                path="/api/v1/forecasts/:siteId"
+                description="Precomputed hourly O₃ and NO₂ model output for a day or a date range (up to 31 days). Measured days include actuals next to the out-of-sample prediction."
+                credits={100}
+                parameters={[
+                  { name: "siteId", type: "string", description: "Site identifier (e.g., '1' or 'site_1')", required: true },
+                  { name: "date", type: "string", description: "Single day, YYYY-MM-DD", required: false },
+                  { name: "start", type: "string", description: "Range start, YYYY-MM-DD (use with end)", required: false },
+                  { name: "end", type: "string", description: "Range end, YYYY-MM-DD (inclusive)", required: false }
+                ]}
+                responseExample={`{
+  "site_id": "3",
+  "start": "2024-03-15",
+  "end": "2024-03-15",
+  "units": "µg/m³",
+  "model_metrics": {
+    "O3": { "mae": 13.552, "rmse": 22.452, "r2": 0.6894 },
+    "NO2": { "mae": 15.384, "rmse": 22.325, "r2": 0.6104 }
+  },
+  "days": [
+    {
+      "date": "2024-03-15",
+      "kind": "backtest",
+      "context_gap_days": 1,
+      "hours": [
+        { "time": "2024-03-15 09:00:00", "O3_pred": 109.8, "NO2_pred": 28.2, "O3_actual": 119, "NO2_actual": 25 }
+      ]
+    }
+  ],
+  "credits_used": 100,
+  "credits_remaining": 4900
+}`}
+              />
+
               <EndpointCard
                 method="POST"
                 path="/api/v1/forecast"

@@ -66,6 +66,58 @@ function previousDate(date: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+export const MAX_RANGE_DAYS = 31;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Validates a site + inclusive date range and returns the matching days as
+ * hourly rows. Errors come back as { error, status } so callers can reject
+ * a request before charging for it.
+ */
+export function getForecastRange(siteId: string, start: string, end: string) {
+  if (!DATE_RE.test(start) || !DATE_RE.test(end)) {
+    return { error: "Dates must be YYYY-MM-DD", status: 400 } as const;
+  }
+  if (start > end) return { error: "start must be on or before end", status: 400 } as const;
+  const spanDays = (Date.parse(end) - Date.parse(start)) / 86_400_000 + 1;
+  if (!Number.isFinite(spanDays)) return { error: "Invalid date", status: 400 } as const;
+  if (spanDays > MAX_RANGE_DAYS) {
+    return { error: `Range too long: max ${MAX_RANGE_DAYS} days`, status: 400 } as const;
+  }
+
+  const site = getSiteFile(siteId);
+  if (!site) return { error: `Unknown site ${siteId}`, status: 404 } as const;
+
+  const dates = Object.keys(site.days).filter((d) => d >= start && d <= end).sort();
+  if (dates.length === 0) {
+    const all = Object.keys(site.days).sort();
+    return {
+      error: `No forecasts for site ${site.site} between ${start} and ${end}. Available: ${all[0]} to ${all[all.length - 1]}`,
+      status: 404,
+    } as const;
+  }
+
+  const days = dates.map((date) => {
+    const day = site.days[date];
+    return {
+      date,
+      // backtest: out-of-sample prediction for a measured day (actuals included)
+      // forecast: prediction for a day with no measurements
+      kind: day.kind,
+      context_gap_days: day.gap,
+      hours: hourStamps(date).map((time, h) => ({
+        time,
+        O3_pred: day.O3_pred[h],
+        NO2_pred: day.NO2_pred[h],
+        O3_actual: day.O3_actual?.[h] ?? null,
+        NO2_actual: day.NO2_actual?.[h] ?? null,
+      })),
+    };
+  });
+
+  return { site_id: String(site.site), start, end, units: "µg/m³", model_metrics: site.metrics, days };
+}
+
 /**
  * Same shape the ML service's /forecast/by-date/ returned: the previous day's
  * observations (when there are any) as history, then the 24 forecast hours.

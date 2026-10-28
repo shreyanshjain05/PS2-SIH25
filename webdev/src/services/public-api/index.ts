@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import fs from "fs";
 import path from "path";
 import { parse } from "csv-parse/sync";
-import { getForecastSites } from "@/lib/forecast-data";
+import { getForecastRange, getForecastSites, MAX_RANGE_DAYS } from "@/lib/forecast-data";
 
 // ML Service URL
 const ML_SERVICE_URL = process.env.ML_SERVICE_URL || "http://localhost:8000";
@@ -16,6 +16,7 @@ const CREDIT_COSTS = {
   SAMPLE_DATA: 50,
   FORECAST: 100,
   TIMESERIES: 150,
+  FORECAST_DATA: 100,
 } as const;
 
 // Helper: Verify API Key and get user
@@ -115,6 +116,10 @@ export const publicApiService = new Elysia({ prefix: "/v1" })
       "POST /v1/forecast/timeseries": {
         description: "Get detailed timeseries forecast with historical data",
         credits: CREDIT_COSTS.TIMESERIES,
+      },
+      "GET /v1/forecasts/:siteId": {
+        description: `Precomputed hourly O3/NO2 model output. Query: ?date=YYYY-MM-DD or ?start=YYYY-MM-DD&end=YYYY-MM-DD (max ${MAX_RANGE_DAYS} days)`,
+        credits: CREDIT_COSTS.FORECAST_DATA,
       },
       "GET /v1/credits": {
         description: "Check your remaining credits (free)",
@@ -243,6 +248,58 @@ export const publicApiService = new Elysia({ prefix: "/v1" })
       return { error: "Failed to load site data" };
     }
   })
+
+  // Precomputed Forecasts (served from webdev/data/forecasts, no ML service needed)
+  .get(
+    "/forecasts/:siteId",
+    async ({ request, params, query, set }) => {
+      const authHeader = request.headers.get("Authorization");
+      const authResult = await verifyApiKey(authHeader);
+
+      if (!authResult.valid) {
+        set.status = 401;
+        return { error: authResult.error };
+      }
+
+      const start = query.date ?? query.start;
+      const end = query.date ?? query.end ?? query.start;
+      if (!start || !end) {
+        set.status = 400;
+        return { error: "Provide ?date=YYYY-MM-DD or ?start=YYYY-MM-DD&end=YYYY-MM-DD" };
+      }
+
+      // Validate before charging so bad requests don't cost credits
+      const result = getForecastRange(params.siteId, start, end);
+      if ("error" in result) {
+        set.status = result.status;
+        return { error: result.error };
+      }
+
+      const creditResult = await consumeCredits(
+        authResult.userId!,
+        CREDIT_COSTS.FORECAST_DATA,
+        `/v1/forecasts/${params.siteId}`
+      );
+
+      if (!creditResult.success) {
+        set.status = 402;
+        return { error: creditResult.error };
+      }
+
+      return {
+        ...result,
+        credits_used: CREDIT_COSTS.FORECAST_DATA,
+        credits_remaining: creditResult.remaining,
+      };
+    },
+    {
+      query: t.Object({
+        date: t.Optional(t.String()),
+        start: t.Optional(t.String()),
+        end: t.Optional(t.String()),
+      }),
+    }
+  )
 
   // Generate Forecast
   .post(
